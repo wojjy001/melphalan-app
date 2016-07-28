@@ -1,0 +1,4 @@
+SIM.data1$TIME <- as.numeric(SIM.data1$TIME)
+typeof(SIM.data1)
+head(SIM.data1)
+?read.csv

@@ -1,0 +1,17 @@
+Wings for NONMEM
+C:\nm73ifort\wfn7\bin\nmfewfn73 PKPD_Final_SIM_points_duration.ctl PKPD_Final_SIM_points_duration.lst -prdefault [nodes]=1 "-nmexec=PKPD_Final_SIM_points_duration.exe" "-runpdir=../temp_ivf11.dir"
+C:\nm73ifort\tr\nmtran.exe 
+  
+ WARNINGS AND ERRORS (IF ANY) FOR PROBLEM    1
+             
+ (WARNING  2) NM-TRAN INFERS THAT THE DATA ARE POPULATION.
+             
+ (WARNING  48) DES-DEFINED ITEMS ARE COMPUTED ONLY WHEN EVENT TIME
+ INCREASES. E.G., DISPLAYED VALUES ASSOCIATED WITH THE FIRST EVENT RECORD
+ OF AN INDIVIDUAL RECORD ARE COMPUTED WITH (THE LAST ADVANCE TO) AN EVENT
+ TIME OF THE PRIOR INDIVIDUAL RECORD.
+ifort /nologo /nbs /w /4Yportlib /Gs /Ob1gyti /Qprec_div /FePKPD_Final_SIM_points_duration.exe  FSUBS.f90 C:\nm73ifort\nm\pnm_mpid.obj /include:C:\nm73ifort\resource /include:C:\nm73ifort\resource @link.lnk  C:\nm73ifort\resource\PRGLOBALP.obj C:\nm73ifort\pr\MUMODEL.obj C:\nm73ifort\util\PARALLEL.obj C:\nm73ifort\pr\prpnm.obj C:\nm73ifort\nm\nonmem.obj C:\nm73ifort\nm\nonmem.lib  C:\nm73ifort\resource\resource.lib 
+[User] wojjy001
+[CPU] HSCPW-DF2 Intel64 Family 6 Model 47 Stepping 2, GenuineIntel
+[status]
+Error=None 
