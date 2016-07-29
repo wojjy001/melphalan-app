@@ -1,139 +1,190 @@
 # Define the model parameters and equations
-# Using mrgsolve - differential equations
+# Using mrgsolve - analytical solutions
 # This compiled model is used for simulating n individuals and their concentration-time profiles
 code <- '
-	$INIT	// Initial conditions for compartments
-		DEPOT = 0, // Depot - dose is added here
-		TRANS1 = 0, // Transit 1
-		TRANS2 = 0, // Transit 2
-		CENT = 0, // Central
-		PERI = 0, // Peripheral
-		AUC = 0 // Area under the curve compartment
+$CMT			// Initial conditions for compartments
+					CENT,	// Central compartment for PK
+					PERI,	// Peripheral compartment for PK
+					STEM,	// Stem compartment for PD
+					ANC,	// Absolute neutrophil count for PD
+					TRANSIT1,	// Transit compartment 1 for PD
+					TRANSIT2,	// Transit compartment 2 for PD
+					TRANSIT3, // Transit compartment 3 for PD
+					INPUT, // Input compartment for PD
+					TSN	// Time spent in severe neutropenia
 
-	$PARAM	// Population parameters
-		POPCL = 4.63, //THETA4
-		POPV = 55.2, //THETA3
-		POPCLP1 = 11.3, //THETA6
-		POPVP1 = 49.8, //THETA5
-		POPKTR = 2, //THETA7
-		POPF = 1,
+$PARAM		// Population pharmacokinetic parameters
+					POPCL = 28.9,	// Clearance, L/h (THETA1)
+					POPV1 = 19.5,	// Volume of central compartment, L (THETA2)
+					POPQ = 28.5,	// Inter-compartmental clearance, L/h (THETA3)
+					POPV2 = 20.9,	// Volume of peripheral compartment, L (THETA4)
+					SHARE_ETA = 1.31,	// ETA shared between CL and V2 (THETA5)
+					W = 0.693,	// Standard deviation of residuals for PK (THETA9)
 
-		// Covariate effects
-		F1XC = 0.863, //THETA8
-		F1CAP = 0.978, //THETA9
-		COVFED = -0.209, //THETA10
-		COVFED2 = -0.549, //THETA11
-		ALAG1 = 0.115, //THETA12
-		FTLAG2 = 0.203, //THETA13
-		COVFEDF = 0.105, //THETA14
-		COVSEX = 0.144, //THETA15
+					// Population pharmacodynamic parameters
+					POPBASE = 5.66, // (THETA10)
+					POPSLOPE = 7.41,	// (THETA11)
+					POPMTT = 96,	// Mean transit time, days (THETA12)
+					POPTHALF = 7,	// (THETA15)
+					POPIP01 = 109,	// (THETA16)
+					POPIP02 = 0.0564,	// (THETA17)
+					POPIPT = 14.7,	// (THETA18)
 
-		// Averaged values for study effects on parameters
-		COVSTDF = 1.157, //Study averaged F for simulation
-		COVSTDKTR = 0.894, //Study averaged KTR for simulation
-		COVSTDCL = 0.789, //Study averaged CL for simulation
-		COVSTDV = 0.786, //Study averaged V for simulation
+					// Covariate effects
+					CRCL_CL = 0.193,	// Effect of CrCL on CL (THETA6)
+					SLC7A5_V2 = -0.130,	// Effect of SLC7A5 on V2 (THETA7)
+					HCT_CL = 0.216,	// Effect of HCT on CL (THETA8)
+					ENDO_POWER1 = 0.188,	// Endogenous GSCF effect (THETA13)
+					NEUP_POWER1 = 0.0313,	// Neupogen GSCF effect (THETA14)
+					GCSF_MTT = 0.157,	// Effect of GCSF on MTT (THETA19)
+					ANCBASE_BASE = 0.226,	// Effect of ANC on BASE (THETA20)
+					GCSF_SLOPE = 0.421,	// Effect of GSCF on SLOPE (THETA21)
+					RACE_MTT = -0.0894,	// Effect of RACE on MTT (THETA22)
+					CRCL_MTT = -0.056,	// Effect of CrCL on MTT (THETA23)
+					SEX_SLOPE = 0.214,	// Effect of SEX on SLOPE (THETA24)
+					HCT_SLOPE = 0.646,	// Effect of HCT on SLOPE (THETA25)
+					HCT_BASE = 0.582,	// Effect of HCT on BASE (THETA26)
 
-		// Default covariate values for simulation
-		FED = 1, // Fed (1) or fasted (0)
-		SEX = 1, // Male (1) or female (0)
-		FFM = 55.49, // Fat free mass (kg)
-		TRT = 1, // Formulation; Doryx MPC (1), Doryx tablet (2), Doryx capsule (3)
-		PER = 1	 // Period; first occassion (1) or second occassion (2)
+					// Default covariate values for simulation
+					CRCL = 91.94,	// Creatinine clearance (mL/min)
+					HCT = 32.5,	// Haematocrit (%)
+					SEX = 0,	// Male (1) or female (0)
+					FFM = 59.9,	// Fat free mass (kg)
+					SLC7A5 = 0,	// AA or AG (0) versus GG (1)
+					GCSF = 0,	// Neupogen administered on Day 1 (0) or Day 7 (1)
+					RACE = 0,	// Caucasian or unknown (0) versus African-American (1)
+					ANCBASE = 3.5	// Baseline ANC (K/µL)
 
-	$OMEGA	name = "BSV"
-		block = TRUE
-		labels = s(BSV_CL,BSV_KTR,BSV_VP1,BSV_V)
-		0.0373 // BSV for CL
-		0.0229 0.0796 // BSV for KTR
-		0.0106 -0.01 0.0229 // BSV for VP1
-		0.0522 0.0936 -0.00506 0.141 // BSV for V
+$OMEGA		name = "BSV"
+					block = FALSE
+					labels = s(BSVCL,BSVV1,BSVQ,BSVBASE,BSVSLOPE,BSVMTT,BSVIP0)
+					0.0792	// BSVCL
+					0.0740	// BSVV1
+					0.297	// BSVQ
+					0.1	// BSVBASE
+					0.0631	// BSVSLOPE
+					0.00561	// BSVMTT
+					0.23	// BSVIP0
 
-	$OMEGA	name = "BOV"
-		block = FALSE
-		labels = s(BOV_CL1,BOV_CL2,BOV_KTR1,BOV_KTR2)
-		0.0183 // BOV on first occassion for CL
-		0.0183 // BOV on second occassion for CL
-		0.0738 // BOV on first occassion for KTR
-		0.0738 // BOV on second occassion for KTR
+$SIGMA		block = FALSE
+					labels = s(ERRPK,ERRPD)
+					0.0584	// Log-normal proportional error for PK observations
+					1	// Additive error for PD observations
 
-	$SIGMA	block = FALSE
-		labels = s(ERR_PRO,ERR_ADD)
-		0.0384 // Proportional error
-		392.04 // Additive error
+$MAIN			//////////////////////
+					// PHARMACOKINETICS //
+					//////////////////////
 
-	$MAIN	// Covariate effects
-		double FEDCOV2 = 1; // Fasted
-		if (FED == 1) FEDCOV2 = 1+COVFEDF; // Fed
-		double SEXCOV = 1; // Male
-		if (SEX == 0) SEXCOV = 1+COVSEX; // Female
-		double FEDCOV = 1; // Fasted
-		if (FED == 1 & TRT == 1) FEDCOV = 1+COVFED2; // Fed and Doryx MPC
-		if (FED == 1 & TRT == 2) FEDCOV = 1+COVFED; // Fed and Doryx tablet
-		if (FED == 1 & TRT == 3) FEDCOV = 1+COVFED; // Fed and Doryx capsule
+					// Infusion duration
+					D_CENT = 0.5;	// 30 minutes
 
-		// Between-occassion variability
-			// Clearance
-			double BOV_CL = BOV_CL1;
-			if (PER == 2) BOV_CL = BOV_CL2;
-			double ETA_CL = BSV_CL+BOV_CL;
-			// Transit
-			double BOV_KTR = BOV_KTR1;
-			if (PER == 2) BOV_KTR = BOV_KTR2;
-			double ETA_KTR = BSV_KTR+BOV_KTR;
-			// Volume - peripheral
-			double ETA_VP1 = BSV_VP1;
-			// Volume - central
-			double ETA_V = BSV_V;
+					// Covariate effects
+					double SLC7A5COV_V2 = 1;
+					if (SLC7A5 == 1) SLC7A5COV_V2 = 1 + SLC7A5_V2;
 
-		// Individual parameter values
-		double CL = POPCL*pow(FFM/70,0.75)*exp(ETA_CL)*COVSTDF*COVSTDCL*FEDCOV2*SEXCOV;
-		double V = POPV*(FFM/70)*exp(ETA_V)*COVSTDF*COVSTDV*FEDCOV2;
-		double CLP1 = POPCLP1*pow(FFM/70,0.75)*COVSTDF*FEDCOV2;
-		double VP1 = POPVP1*(FFM/70)*exp(ETA_VP1)*COVSTDF*FEDCOV2;
-		double KTR = POPKTR*exp(ETA_KTR)*FEDCOV*COVSTDKTR;
-		double F = POPF; // Doryx tablet
-		if (TRT == 1) F = F1XC; // Doryx MPC
-		if (TRT == 3) F = F1CAP; // Doryx capsule
-		F_DEPOT = F;
+					// Individual parameter values
+					if (ID == 1) {
+						BSVCL = 0;
+						BSVV1 = 0;
+						BSVQ = 0;
+					}
+					double CL = POPCL*pow(FFM/59.9,0.75)*pow(CRCL/91.94,CRCL_CL)*pow(HCT/32.5,HCT_CL)*exp(BSVCL);
+					double V1 = POPV1*(FFM/59.9)*exp(BSVV1);
+					double Q = POPQ*pow(FFM/59.9,0.75)*exp(BSVQ);
+					double V2 = POPV2*(FFM/59.9)*SLC7A5COV_V2*exp(BSVCL*SHARE_ETA);
 
-		// Micro-rate constants
-		double K12 = KTR; //DEPOT to TRANS1
-		double K23 = KTR; //TRANS1 to TRANS2
-		double K34 = KTR; //TRANS2 to CENT
-		double K45 = CLP1/V; //CENT to PERI
-		double K54 = CLP1/VP1; //PERI to CENT
-		double K46 = CL/V; //CENT to elimination
+					// Individual micro-rate constants
+					double K10 = CL/V1;
+					double K12 = Q/V1;
+					double K21 = Q/V2;
 
-		// Lag time
-		double TLAG = 0; // Doryx tablet
-		if (TRT == 1) TLAG = ALAG1; // Doryx MPC
-		if (TRT == 3) TLAG = ALAG1; // Doryx capsule
-		double FTLAG = 0; // Fasted
-		if (FED == 1) FTLAG = FTLAG2; // Fed
-		double ALAG_DEPOT = TLAG+FTLAG;
+					// Initial conditions
+					CENT_0 = 0;
+					PERI_0 = 0;
 
-	$ODE	// Differential equations
-		dxdt_DEPOT = -K12*DEPOT;
-		dxdt_TRANS1 = K12*DEPOT -K23*TRANS1;
-		dxdt_TRANS2 = K23*TRANS1 -K34*TRANS2;
-		dxdt_CENT = K34*TRANS2 -K45*CENT +K54*PERI -K46*CENT;
-		dxdt_PERI = K45*CENT -K54*PERI;
-		dxdt_AUC = CENT/V;
+					//////////////////////
+					// PHARMACODYNAMICS //
+					//////////////////////
 
-		// Cmax and Tmax
-		double CP = CENT/V;
-		if (SOLVERTIME == 0) double Cmax = 0;
-		if (SOLVERTIME == 0) double Tmax = 0;
-		if (CP > Cmax) {
-			Cmax = CP;
-			Tmax = SOLVERTIME;
-		}
+					// Covariate effects
+					double GCSFCOV_SLOPE = 1;
+					if (GCSF == 1) GCSFCOV_SLOPE = 1 + GCSF_SLOPE;
+					double GCSFCOV_MTT = 1;
+					if (GCSF == 1) GCSFCOV_MTT = 1 + GCSF_MTT;
+					double SEXCOV_SLOPE = 1;
+					if (SEX == 1) SEXCOV_SLOPE = 1 + SEX_SLOPE;
+					double RACECOV_MTT = 1;
+					if (RACE == 1) RACECOV_MTT = 1 + RACE_MTT;
+					double ON_IP0 = 1;
+					if (GCSF == 1) ON_IP0 = 0;
 
-	$TABLE	table(IPRE) = CENT/V;
-		table(DV) = table(IPRE)*(1+ERR_PRO)+ERR_ADD;
+					// Population parameter values
+					if (ID == 1) {
+						BSVBASE = 0;
+						BSVSLOPE = 0;
+						BSVMTT = 0;
+						BSVIP0 = 0;
+					}
+					double BASE = POPBASE*pow(ANCBASE/3.5,ANCBASE_BASE)*pow(HCT/32.5,HCT_BASE)*exp(BSVBASE);
+					double SLOPE = POPSLOPE*GCSFCOV_SLOPE*SEXCOV_SLOPE*pow(HCT/32.5,HCT_SLOPE)*exp(BSVSLOPE);
+					double MTT = POPMTT*GCSFCOV_MTT*RACECOV_MTT*pow(CRCL/91.94,CRCL_MTT)*exp(BSVMTT);
+					double KE = log(2)/POPTHALF;
+					double IP0 = ON_IP0*POPIP01+(1-ON_IP0)*POPIP02*exp(BSVIP0);
+					double IPT = POPIPT;
 
-	$CAPTURE CL V CLP1 VP1 KTR F ETA_CL ETA_V ETA_VP1 ETA_KTR FED SEX FFM TRT PER Cmax Tmax
+					// Individual rate constants
+					double K = 4/MTT;
+
+					// Initial conditions
+					STEM_0 = KE*BASE/K;
+					ANC_0 = BASE;
+					TRANSIT1_0 = KE*BASE/K;
+					TRANSIT2_0 = KE*BASE/K;
+					TRANSIT3_0 = KE*BASE/K;
+					INPUT_0 = IP0;
+					TSN_0 = 0;
+
+$ODE			//////////////////////
+					// PHARMACOKINETICS //
+					//////////////////////
+
+					// Differential equations
+					dxdt_CENT = K21*PERI -K10*CENT -K12*CENT;
+					dxdt_PERI = K12*CENT -K21*PERI;
+
+					//////////////////////
+					// PHARMACODYNAMICS //
+					//////////////////////
+
+					// Other variables required for differential equations
+					double QN = 0;
+					if (GCSF == 0 & SOLVERTIME > 72) QN = 1;
+					if (GCSF == 1 & SOLVERTIME > 216) QN = 1;
+					double POWER1 = ENDO_POWER1 + QN*NEUP_POWER1;
+					double FN = pow(BASE/0.001,POWER1);
+					if (ANC > 0.001) FN = pow(BASE/ANC,POWER1);
+
+					double KIN = 0;
+					if (GCSF == 0 & SOLVERTIME > 72) KIN = 1/IPT;
+					if (GCSF == 1 & SOLVERTIME > 216) KIN = 1/IPT;
+
+					double CP = CENT/V1;
+					double DRUG = SLOPE*CP;
+
+					// Differential equations
+					dxdt_STEM = K*STEM*(1-DRUG)*FN -K*STEM;
+					dxdt_ANC = K*TRANSIT3 -KE*ANC +KIN*INPUT;
+					dxdt_TRANSIT1 = K*STEM -K*TRANSIT1;
+					dxdt_TRANSIT2 = K*TRANSIT1 -K*TRANSIT2;
+					dxdt_TRANSIT3 = K*TRANSIT2 -K*TRANSIT3;
+					dxdt_INPUT = -KIN*INPUT;
+					dxdt_TSN = 0;
+					if (ANC < 0.5) dxdt_TSN = 1;
+
+$TABLE		table(IPRE) = CENT/V1;
+
+$CAPTURE	CRCL HCT SEX FFM SLC7A5 GCSF RACE ANCBASE
 '
 # Compile the model code
-mod <- mcode("popDOXY",code) # There is opportunity to simply update model parameters after the model code has been compiled
+mod <- mcode("popMELPH",code)
+# There is opportunity to simply update model parameters after the model code has been compiled
