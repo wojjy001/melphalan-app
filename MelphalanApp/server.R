@@ -1,4 +1,4 @@
-# server.R script for DoxyApp
+# server.R script for MelphalanApp
 # Reactive objects (i.e., those dependent on widget input) are written here
 # ------------------------------------------------------------------------------
 # Define the "server" part of the Shiny application
@@ -6,423 +6,234 @@ shinyServer(function(input,output,session) {
 	###########
 	##_INPUT_##
 	###########
-	# Create a reactive summary function for calculating the median and prediction intervals
-		Rsummary.function <- reactive({
-			# Specify percentile probabilities given input
-			if (input$PI == 2) {
-				input.CIlo <- 0.05	#5th percentile
-				input.CIhi <- 0.95	#95th percentile
-			}
-			if (input$PI == 3) {
-				input.CIlo <- 0.025	#2.5th percentile
-				input.CIhi <- 0.975	#97.5th percentile
-			}
-			# Summary function for median and prediction intervals
-			summary.function <- function(x) {
-				median <- median(x)
-				summary <- c("Median" = median)
-				if (input$PI > 1) {
-					CIlo <- quantile(x,probs = input.CIlo)
-					CIhi <- quantile(x,probs = input.CIhi)
-					summary <- c(CIlo,"Median" = median,CIhi)
-					names(summary)[c(1,3)] <- c("CIlo","CIhi")
-					summary
-				}
-				summary
-			}
-		})	#Brackets closing "Rsummary.function"
+	# Create an input data frame that stores input patient characteristics
+	# Will be used for the three different simulation scenarios
+		Rinput.data <- reactive({
+			# Call in user-defined widget values
+				AGE <- input$AGE	# Numeric input for patient's age
+				TBW <- input$TBW	# Numeric input for patient's total body weight
+				HT <- input$HT	# Numeric input for patient's height
+				SECR <- input$SECR	# Numeric input for patient's serum creatinine
+				HCT <- input$HCT	# Numeric input for patient's haematocrit
+				ANCBASE <- input$ANCBASE	# Numeric input for patient's baseline absolute neutrophil count
+				if (input$SEX == 1) SEX <- 0	# Select input for patient's gender, female = 0
+				if (input$SEX == 2) SEX <- 1	# Select input for patient's gender, male = 1
+				if (input$RACE == 1 | input$RACE == 3) RACE <- 0	# Select input for patient's race, Caucasian and Unknown = 0
+				if (input$RACE == 2) RACE <- 1	# Select input for patient's race, African-American = 1
+				if (input$SLC7A5 == 1) SLC7A5 <- 0	# Select input for patient's SLC7A5 genotype, AA or AG = 0
+				if (input$SLC7A5 == 2) SLC7A5 <- 1	# Select input for patient's SLC7A5 genotype, GG = 1
 
-	# Simulate a population of fed/fasted individuals administered Doryx MPC
-		RdoryxMPC.data <- reactive({
-			withProgress(
-				message = "Simulating concentrations...",
-				value = 0,
-				{
-					# Simulate concentration-time profiles for the population
-					# Specify dosing input
-					  if (input$DOSE_REG == 1) {	# Single dose scenario : A single 120 mg MPC dose
-					    DOSE_DORYXMPC <- 120	# mg
-				  		# Create input data frame for mrgsim
-					  		input.doryxMPC.data <- data.frame(
-					  			ID = 1:n,	# n individuals
-					  			amt = DOSE_DORYXMPC*1000,	# amt in microg
-					  			evid = 1,	# evid = 1; dosing event
-					  			cmt = 1,	# cmt = 1; dose goes into compartment 1 = depot
-					  			time = 0,	# time = 0; begin dosing at time = 0
-					  			TRT = 1,	# Doryx MPC
-					  			FED = rbinom(n,size = 1,prob = 0.5),	# Randomly assign fed or fasted status
-					  			SEX = rbinom(n,size = 1,prob = 0.5),	# Randomly assign male or female status
-					  			FFM = rlnorm(n,meanlog = log(55.49),sd = 0.09)	# Randomly generate value for fat free mass (kg)
-					  		)
-					  }
-						if (input$DOSE_REG != 1) {	# Multiple dose scenario
-							# Specify the dosing times for the clinical scenario
-						  	if (input$DOSE_REG == 2) dose.times <- c(0,12,24,48,72,96,120,144) # 120 mg every 12 hours on the first day, followed by six 120 mg doses at 24 hour intervals
-						  	if (input$DOSE_REG == 3) dose.times <- seq(from = 0,to = 156,by = 12) # 120 mg every 12 hours for 7 days
-						  # Create input data frame for mrgsim
-							  input.doryxMPC.data <- data.frame(
-							    ID = 1:n,	# n individuals
-									time = 0,	# Begin dosing at time = 0
-							    amt = 120*1000,	# amt in microg
-							    evid = 1,	# evid = 1; dosing event
-							    cmt = 1,	# cmt = 1; dose goes into compartment 1 = depot
-							    TRT = 1,	# Doryx MPC
-									FED = rbinom(n,size = 1,prob = 0.5),	# Randomly assign fed or fasted status
-					  			SEX = rbinom(n,size = 1,prob = 0.5),	# Randomly assign male or female status
-					  			FFM = rlnorm(n,meanlog = log(55.49),sd = 0.09)	# Randomly generate value for fat free mass (kg)
-							  )
-							# Multiple input.doryxMPC.data by the length of sample times
-								input.doryxMPC.data <- lapply(input.doryxMPC.data,rep.int,times = length(time.multiple))
-								input.doryxMPC.data <- as.data.frame(input.doryxMPC.data)	# Convert to a data frame
-								input.doryxMPC.data <- input.doryxMPC.data[with(input.doryxMPC.data, order(input.doryxMPC.data$ID)),]	# Sort by ID
-							# Add a time column
-								input.doryxMPC.data$time <- time.multiple
-							# For times that aren't dosing times, make evid = 0
-								input.doryxMPC.data$evid[!c(input.doryxMPC.data$time %in% dose.times)] <- 0
-							# Return the resulting data frame
-								input.doryxMPC.data
-						}
-				  # Simulate
-						doryxMPC.data <- mod %>% data_set(input.doryxMPC.data) %>% mrgsim(tgrid = TIME.tgrid)
-						doryxMPC.data <- as.data.frame(doryxMPC.data)	#Convert to a data frame so that it is more useful for me!
-				}	#Brackets closing expression for "withProgress"
-			)	#Brackets closing "withProgress"
-		})	# Brackets closing "RdoryxMPC.data"
+			# Calculate secondary parameters based on input
+				# Body mass index (BMI)
+					BMI <- TBW/(HT/100)^2	# Used to calculate fat free mass
+				# Body surface area (BSA)
+					BSA <- sqrt((HT*TBW)/3600)	# Use to calculate amount to be administered
+				# Creatinine clearance (CRCL) and fat free mass (FFM) based on gender
+					if (SEX == 0) {	# Females
+						CRCL <- (((140-AGE)*TBW)/(SECR*0.815))*0.85
+						FFM <- 9270*TBW/(8780+(244*BMI))
+					} else {	# Males
+						CRCL <- ((140-AGE)*TBW)/(SECR*0.815)
+						FFM <- 9270*TBW/(6680+(216*BMI))
+					}
 
-	RdoryxMPC.summary <- reactive({
-		# Read in the necessary reactive expressions
-			doryxMPC.data <- RdoryxMPC.data()
-			summary.function <- Rsummary.function()
-		# Calculate the median and prediction intervals for calculations at each time-point
-			if (input$SIM_STUDY == 1 | input$SIM_STUDY == 2) {
-				doryxMPC.summary <- ddply(doryxMPC.data, .(time,FED), function(doryxMPC.data) summary.function(doryxMPC.data$IPRE))
-			} else {
-				doryxMPC.summary <- ddply(doryxMPC.data, .(time,SEX), function(doryxMPC.data) summary.function(doryxMPC.data$IPRE))
-			}
-			doryxMPC.summary
-	})	# Brackets closing "RdoryxMPC.summary"
+			# Set up input.data
+			# Only columns missing values will be the amount to be administered and when G-CSF rescue was administered as each "sim.data" data frame will have a different value for "amt" and "G-CSF"
+				input.data <- expand.ev(
+					ID = 1:(n+1), # n individuals (plus an additional because the first ID is PRED)
+					time = 0,	# time that melphalan dose will be administered
+					amt = NA,	# amt in mg/m^2, currently amount per m^2 is unknown
+					evid = 1,	# dosing event
+					cmt = 1, # dose into compartment 1, i.e., CENT
+					rate = -2,	# infusion duration is specified in the model file
+					BSA = BSA,	# Required to be stored to calculate "amt"
+					BMI = BMI,	# Required to be stored for ui
+					FFM = FFM,	# Fat free mass
+					CRCL = CRCL,	# Creatinine clearance
+					HCT = HCT,	# Haematocrit
+					ANCBASE = ANCBASE,	# Baseline absolute neutrophil count
+					SEX = SEX,	# Gender
+					RACE = RACE,	# Race
+					SLC7A5 = SLC7A5,	# Genotype
+					GCSF = 0	# Time of administration of G-CSF (will be different for different sim.data), default is on Day 1 (0)
+				)
+		})	# Brackets closing "Rinput.data"
 
-	# Simulate a population of fed/fasted individuals administered Doryx Tablet
-		RdoryxTAB.data <- reactive({
-			withProgress(
-				message = "Simulating concentrations...",
-				value = 0,
-				{
-			  # Simulate concentration-time profiles for the population
-			  	# Specify dosing input
-					  if (input$DOSE_REG == 1) {	# Single dose scenario: A single 100 mg dose of Doryx Tablet
-				  		DOSE_DORYXTAB <- 100	# mg
-				  		# Create input data frame for mrgsim
-					  		input.doryxTAB.data <- data.frame(
-					  			ID = 1:n,	# n individuals
-					  			amt = DOSE_DORYXTAB*1000,	# amt in microg
-					  			evid = 1,	# evid = 1; dosing event
-					  			cmt = 1,	# cmt = 1; dose goes into compartment 1 = depot
-					  			time = 0,	# time = 0; begin dosing at time = 0
-					  			TRT = 2,	# Doryx tablet
-									FED = rbinom(n,size = 1,prob = 0.5),	# Randomly assign fed or fasted status
-					  			SEX = rbinom(n,size = 1,prob = 0.5),	# Randomly assign male or female status
-					  			FFM = rlnorm(n,meanlog = log(55.49),sd = 0.09)	# Randomly generate value for fat free mass (kg)
-					  		)
-						}
-						if (input$DOSE_REG != 1) {	# Multiple dose scenario
-							# Specify the dosing times for the clinical scenario
-						  	if (input$DOSE_REG == 2) dose.times <- c(0,12,24,48,72,96,120,144) # Doryx TAB: 100 mg every 12 hours on the first day, followed by six 100 mg doses at 24 hour intervals
-						  	if (input$DOSE_REG == 3) dose.times <- seq(from = 0,to = 156,by = 12) # Doryx TAB: 100 mg every 12 hours for 7 days
-						  # Create input data frame for mrgsim
-							  input.doryxTAB.data <- data.frame(
-							    ID = 1:n,	# n individuals
-									time = 0,
-							    amt = 100*1000,	# amt in microg
-							    evid = 1,	# evid = 1; dosing event
-							    cmt = 1,	# cmt = 1; dose goes into compartment 1 = depot
-							    TRT = 2,	# Doryx tablet
-									FED = rbinom(n,size = 1,prob = 0.5),	# Randomly assign fed or fasted status
-					  			SEX = rbinom(n,size = 1,prob = 0.5),	# Randomly assign male or female status
-					  			FFM = rlnorm(n,meanlog = log(55.49),sd = 0.09)	# Randomly generate value for fat free mass (kg)
-							  )
-							# Multiple input.doryxMPC.data by the length of sample times
-								input.doryxTAB.data <- lapply(input.doryxTAB.data,rep.int,times = length(time.multiple))
-								input.doryxTAB.data <- as.data.frame(input.doryxTAB.data)	# Convert to a data frame
-								input.doryxTAB.data <- input.doryxTAB.data[with(input.doryxTAB.data, order(input.doryxTAB.data$ID)),]	# Sort by ID
-							# Add a time column
-								input.doryxTAB.data$time <- time.multiple
-							# For times that aren't dosing times, make evid = 0
-								input.doryxTAB.data$evid[!c(input.doryxTAB.data$time %in% dose.times)] <- 0
-							# Return the resulting data frame
-								input.doryxTAB.data
-						}
-					# Simulate
-				  	doryxTAB.data <- mod %>% data_set(input.doryxTAB.data) %>% mrgsim(tgrid = TIME.tgrid)
-				  	doryxTAB.data <- as.data.frame(doryxTAB.data)	#Convert to a data frame so that it is more useful for me!
-				}	#Brackets closing expression for "withProgress"
-			)	#Brackets closing "withProgress"
-		})	#Brackets closing "RdoryxTAB.data"
+	###########
+	##_DOSE1_##
+	###########
 
-	RdoryxTAB.summary <- reactive({
-		# Read in the necessary reactive expressions
-			doryxTAB.data <- RdoryxTAB.data()
-			summary.function <- Rsummary.function()
-		# Calculate the median and prediction intervals for calculations at each time-point
-			if (input$SIM_STUDY == 1 | input$SIM_STUDY == 2) {
-				doryxTAB.summary <- ddply(doryxTAB.data, .(time,FED), function(doryxTAB.data) summary.function(doryxTAB.data$IPRE))
-			} else {
-				doryxTAB.summary <- ddply(doryxTAB.data, .(time,SEX), function(doryxTAB.data) summary.function(doryxTAB.data$IPRE))
-			}
-		doryxTAB.summary
-	})	#Brackets closing "RdoryxTAB.summary"
+	# Simulate a population based on input characteristics
+	# Will have it's own specific dose and time of G-CSF administration
+		Rsim.data1 <- reactive({
+			# Read in reactive input.data
+				input.data <- Rinput.data()
+			# Read in simulation specific value for G-CSF
+				if (input$GCSF1 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+			# Calculate amt to be administered based on patient's BSA and DOSE1
+				input.data$amt <- input.data$BSA*input$DOSE1
+		  # Simulate
+				sim.data1 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+				sim.data1 <- as.data.frame(sim.data1)	#Convert to a data frame so that it is more useful for me!
+		})	# Brackets closing "Rsim.data1"
+
+	# Create a data frame that only contains the "PRED" data
+		Rpred.data1 <- reactive({
+			# Read in reactive expressions
+				sim.data1 <- Rsim.data1()
+			# Subset out only ID == 1 (PRED individual)
+				pred.data1 <- sim.data1[sim.data1$ID == 1,]
+		})	# Brackets closing "Rpred.data1"
+
+	# Summarise simulated data as prediction intervals when option is selected
+		Rsummary.data1 <- reactive({
+			# Read in reactive expressions
+				sim.data1 <- Rsim.data1()
+			# Summarise data
+				sim.data1 <- sim.data1[sim.data1$ID != 1,]	# Do not include ID == 1 - they are PRED
+				summary.data1 <- ddply(sim.data1, .(time), summary.function)
+		})	# Brackets closing "Rsummary.data1"
+
+	###########
+	##_DOSE2_##
+	###########
+
+	# Simulate a population based on input characteristics
+	# Will have it's own specific dose and time of G-CSF administration
+		Rsim.data2 <- reactive({
+			# Read in reactive input.data
+				input.data <- Rinput.data()
+			# Read in simulation specific value for G-CSF
+				if (input$GCSF2 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+			# Calculate amt to be administered based on patient's BSA and DOSE1
+				input.data$amt <- input.data$BSA*input$DOSE2
+		  # Simulate
+				sim.data2 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+				sim.data2 <- as.data.frame(sim.data2)	#Convert to a data frame so that it is more useful for me!
+		})	# Brackets closing "Rsim.data2"
+
+	# Create a data frame that only contains the "PRED" data
+		Rpred.data2 <- reactive({
+			# Read in reactive expressions
+				sim.data2 <- Rsim.data2()
+			# Subset out only ID == 1 (PRED individual)
+				pred.data2 <- sim.data2[sim.data2$ID == 1,]
+		})	# Brackets closing "Rpred.data2"
+
+	# Summarise simulated data as prediction intervals when option is selected
+		Rsummary.data2 <- reactive({
+			# Read in reactive expressions
+				sim.data2 <- Rsim.data2()
+			# Summarise data
+				sim.data2 <- sim.data2[sim.data2$ID != 1,]	# Do not include ID == 1 - they are PRED
+				summary.data2 <- ddply(sim.data2, .(time), summary.function)
+		})	# Brackets closing "Rsummary.data2"
 
 	############
 	##_OUTPUT_##
 	############
+	output$BMI.text <- renderUI({
+		input.data <- Rinput.data()
+		withMathJax(helpText("Body mass index = ",round(input.data$BMI[1],digits = 1)," \\(kg/m^2\\)"))
+	})	# Brackets closing "renderUI" expression
 
-	# Left plot
-		output$Rplot1 <- renderPlot({
-			# Read in the reactive data frame for summary
-				doryxMPC.summary <- RdoryxMPC.summary()
-				doryxTAB.summary <- RdoryxTAB.summary()
-			# Calculate maximum concentration from either dataset for plot axes
-				if (input$PI == 1) max.CONC <- max(c(doryxMPC.summary$Median,doryxTAB.summary$Median))
-				if (input$PI != 1) max.CONC <- max(c(doryxMPC.summary$CIhi,doryxTAB.summary$CIhi))
+	output$BSA.text <- renderUI({
+		input.data <- Rinput.data()
+		withMathJax(helpText("Body surface area = ",round(input.data$BSA[1],digits = 1)," \\(m^2\\)"))
+	})	# Brackets closing "renderUI" expression
 
-			# Plot
+	output$FFM.text <- renderUI({
+		input.data <- Rinput.data()
+		helpText("Fat free mass = ",round(input.data$FFM[1],digits = 1)," \\(kg\\)")
+	})	# Brackets closing "renderUI" expression
+
+	output$CRCL.text <- renderUI({
+		input.data <- Rinput.data()
+		helpText("Creatinine clearance = ",round(input.data$CRCL[1],digits = 1)," \\(mL/min\\)")
+	})	# Brackets closing "renderUI" expression
+
+	# Simulation results for ANC
+		output$anc.plot <- renderPlot({
+			# Read in reactive data
+				pred.data1 <- Rpred.data1()
+				pred.data2 <- Rpred.data2()
+				summary.data1 <- Rsummary.data1()
+				summary.data2 <- Rsummary.data2()
+
+			# Plot ANC over time
+				plotobj1 <- NULL
 				plotobj1 <- ggplot()
-			# Plot the results of fed/fasted - i.e., plot doryxMPC data
-				if (input$SIM_STUDY == 1) {
-					# Fasted = RED
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$FED == 0,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$FED == 0,],fill = "#B22222",alpha = 0.3)
-					# Fed = BLUE
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$FED == 1,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$FED == 1,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot the results of MPC/TAB - i.e., plot fasted data from doryxMPC.data and doryxTAB.data
-				if (input$SIM_STUDY == 2) {
-					# DoryxMPC = RED
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$FED == 0,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$FED == 0,],fill = "#B22222",alpha = 0.3)
-					# DoryxTAB = BLUE
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$FED == 0,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$FED == 0,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot the results of male/female - i.e,. plot doryxMPC.data
-				if (input$SIM_STUDY == 3) {
-					# Female = RED
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$SEX == 0,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$SEX == 0,],fill = "#B22222",alpha = 0.3)
-					# Male = BLUE
-						plotobj1 <- plotobj1 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$SEX == 1,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$SEX == 1,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot horizontal line representing LLOQ
-				plotobj1 <- plotobj1 + geom_hline(aes(yintercept = 10),linetype = "dashed")
-				# if (input$DOSE_REG == 1) plotobj1 <- plotobj1 + annotate("text",x = 25,y = 50,label = "Lower Limit of Quantification",colour = "black",size = 4)
-				# if (input$DOSE_REG != 1) plotobj1 <- plotobj1 + annotate("text",x = 60,y = 80,label = "Lower Limit of Quantification",colour = "black",size = 4)
-				plotobj1 <- plotobj1 + scale_x_continuous("\nTime (hours)")
-			# Plot on linear or log-scale depending on input
-				if (input$LOGS == FALSE) plotobj1 <- plotobj1 + scale_y_continuous("Doxycycline Concentration (µg/L)\n",breaks = plot.breaks,labels = plot.breaks,lim = c(0,max.CONC))
-				if (input$LOGS == TRUE) plotobj1 <- plotobj1 + scale_y_log10("Doxycycline Concentration (µg/L)\n",breaks = log.plot.breaks,labels = log.plot.breaks,lim = c(NA,max.CONC))
+			# Population predicted
+				plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data1,colour = "red",size = 1)	# DOSE1
+				if (input$NREG > 1) plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data2,colour = "blue",size = 1)	# DOSE2
+			# 95% prediction intervals
+				if (input$PI1 == TRUE) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data1,fill = "red",alpha = 0.3)	# DOSE1
+				if (input$PI2 == TRUE & input$NREG > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data2,fill = "blue",alpha = 0.3)	# DOSE2
+			# Grade 4 neutropenia
+				plotobj1 <- plotobj1 + geom_hline(aes(yintercept = 0.5),linetype = "dashed")
+				plotobj1 <- plotobj1 + annotate("text",x = 648,y = 0.8,label = "Grade 4 Neutropenia",size = 5)
+			# Axes
+				plotobj1 <- plotobj1 + scale_x_continuous("\nTime since melphalan dose (days)",breaks = seq(from = 0,to = max(time.PD),by = 100))
+				plotobj1 <- plotobj1 + scale_y_log10("Absolute Neutrophil Count (K/µL)\n",breaks = log.plot.breaks,labels = log.plot.breaks,lim = c(0.0001,NA))
+			# Return plot
 				print(plotobj1)
-		})	#Brackets closing "renderPlot"
+		})	# Brackets closing "renderPlot"
 
-	# Right plot
-		output$Rplot2 <- renderPlot({
-			# Read in the reactive data frame for summary
-				doryxMPC.summary <- RdoryxMPC.summary()
-				doryxTAB.summary <- RdoryxTAB.summary()
-			# Calculate maximum concentration from either dataset for plot axes
-				if (input$PI == 1) max.CONC <- max(c(doryxMPC.summary$Median,doryxTAB.summary$Median))
-				if (input$PI != 1) max.CONC <- max(c(doryxMPC.summary$CIhi,doryxTAB.summary$CIhi))
+	# Simulation results for melphalan concentrations
+		output$melph.plot <- renderPlot({
+			# Read in reactive data
+			pred.data1 <- Rpred.data1()
+			pred.data2 <- Rpred.data2()
+			summary.data1 <- Rsummary.data1()
+			summary.data2 <- Rsummary.data2()
 
-			# Plot
+			# Plot ANC over time
+				plotobj2 <- NULL
 				plotobj2 <- ggplot()
-			# Plot the results of fed/fasted - i.e., plot doryxTAB.data
-				if (input$SIM_STUDY == 1) {
-					# Fasted = RED
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$FED == 0,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$FED == 0,],fill = "#B22222",alpha = 0.3)
-					# Fed = BLUE
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$FED == 1,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$FED == 1,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot the results of MPC/TAB - i.e., plot fed data from doryxMPC.data and doryxTAB.data
-				if (input$SIM_STUDY == 2) {
-					# DoryxMPC = RED
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxMPC.summary[doryxMPC.summary$FED == 1,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxMPC.summary[doryxMPC.summary$FED == 1,],fill = "#B22222",alpha = 0.3)
-					# DoryxTAB = BLUE
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$FED == 1,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$FED == 1,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot the results of male/female - i.e,. plot doryxTAB.data
-				if (input$SIM_STUDY == 3) {
-					# Female = RED
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$SEX == 0,],colour = "#B22222",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$SEX == 0,],fill = "#B22222",alpha = 0.3)
-					# Male = BLUE
-						plotobj2 <- plotobj2 + geom_line(aes(x = time,y = Median),data = doryxTAB.summary[doryxTAB.summary$SEX == 1,],colour = "#3c8dbc",size = 1)
-						if (input$PI > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo,ymax = CIhi),data = doryxTAB.summary[doryxTAB.summary$SEX == 1,],fill = "#3c8dbc",alpha = 0.3)
-				}
-			# Plot horizontal line representing LLOQ
-				plotobj2 <- plotobj2 + geom_hline(aes(yintercept = 10),linetype = "dashed")
-				# if (input$DOSE_REG == 1) plotobj2 <- plotobj2 + annotate("text",x = 25,y = 50,label = "Lower Limit of Quantification",colour = "black",size = 4)
-				# if (input$DOSE_REG != 1) plotobj2 <- plotobj2 + annotate("text",x = 60,y = 80,label = "Lower Limit of Quantification",colour = "black",size = 4)
-				plotobj2 <- plotobj2 + scale_x_continuous("\nTime (hours)")
-			# Plot on linear or log-scale depending on input
-				if (input$LOGS == FALSE) plotobj2 <- plotobj2 + scale_y_continuous("Doxycycline Concentration (µg/L)\n",breaks = plot.breaks,labels = plot.breaks,lim = c(0,max.CONC))
-				if (input$LOGS == TRUE) plotobj2 <- plotobj2 + scale_y_log10("Doxycycline Concentration (µg/L)\n",breaks = log.plot.breaks,labels = log.plot.breaks,lim = c(NA,max.CONC))
+			# Population predicted
+				plotobj2 <- plotobj2 + geom_line(aes(x = time,y = IPRE),data = pred.data1,colour = "red",size = 1)	# DOSE1
+				if (input$NREG > 1) plotobj2 <- plotobj2 + geom_line(aes(x = time,y = IPRE),data = pred.data2,colour = "blue",size = 1)	# DOSE2
+			# 95% prediction intervals
+				if (input$PI1 == TRUE) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data1,fill = "red",alpha = 0.3)	# DOSE1
+				if (input$PI2 == TRUE & input$NREG > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data2,fill = "blue",alpha = 0.3)	# DOSE2
+			# Axes
+				plotobj2 <- plotobj2 + scale_x_continuous("\nTime since melphalan dose (hours)",lim = c(0,12))
+				plotobj2 <- plotobj2 + scale_y_log10("Melphalan Concentration (mg/L)\n",lim = c(0.001,NA),breaks = log.plot.breaks,labels = log.plot.breaks)
+			# Return plot
 				print(plotobj2)
-		})	#Brackets closing "renderPlot"
+		})	# Brackets closing "renderPlot"
 
-	# Left summary table
-		output$Rtable1 <- renderUI({
-			withProgress(
-				message = "Calculating summaries...",
-				value = 0,
-				{
-			  # Read in the necessary reactive expressions
-				  doryxMPC.data <- RdoryxMPC.data()
-					doryxTAB.data <- RdoryxTAB.data()
-				  summary.function <- Rsummary.function()
-					# Subset for the last time-point for each individual and combine the two formulation data frames together
-						doryxMPC.data.last <- ddply(doryxMPC.data, .(ID), oneperID)
-						doryxTAB.data.last <- ddply(doryxTAB.data, .(ID), oneperID)
-						data.last <- rbind(doryxMPC.data.last,doryxTAB.data.last)
+	# Summary of Time spent in Grade 4 Neutropenia for DOSE1
+		output$G4N1.text.DOSE1 <- renderText({
+			# Read in reactive data
+				pred.data1 <- Rpred.data1()
+				summary.data1 <- Rsummary.data1()
+			# Create a text object
+				pred.G4N1 <- round(tail(pred.data1$G4N1,1))	# PRED
+				G4N1.text.DOSE1 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours")
+				if (input$PI1 == TRUE) {
+					CIlo.G4N1 <- round(tail(summary.data1$CIlo_G4N1,1))	# 2.5th percentile
+					CIhi.G4N1 <- round(tail(summary.data1$CIhi_G4N1,1))	# 97.5th percentile
+					G4N1.text.DOSE1 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+				}
+				G4N1.text.DOSE1
+		})	# Brackets closing "renderText"
 
-					# Summarise results for fed/fasted for DoryxMPC data
-						if (input$SIM_STUDY == 1) {
-							# Summarise AUC
-						    AUC.table <- ddply(doryxMPC.data.last, .(FED), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(doryxMPC.data.last, .(FED), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(doryxMPC.data.last, .(FED), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$Tmax))
-						}
-					# Summarise results for MPC/TAB for fasted
-						if (input$SIM_STUDY == 2) {
-							data.last.fasted <- data.last[data.last$FED == 0,]
-							# Summarise AUC
-						    AUC.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$Tmax))
-						}
-					# Summarise results for male/female for doryxMPC.data
-						if (input$SIM_STUDY == 3) {
-							# Summarise AUC
-						    AUC.table <- ddply(doryxMPC.data.last, .(SEX), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(doryxMPC.data.last, .(SEX), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(doryxMPC.data.last, .(SEX), function(doryxMPC.data.last) summary.function(doryxMPC.data.last$Tmax))
-						}
-
-					# Return data frame of combined results
-						table1 <- rbind(AUC.table,Cmax.table,Tmax.table)
-						table1$Variable <- c("AUC\\ (\\mu g*h/L)","AUC\\ (\\mu g*h/L)","Cmax\\ (\\mu g/L)","Cmax\\ (\\mu g/L)","Tmax\\ (h)","Tmax\\ (h)")
-						table1 <- table1[,c(ncol(table1),1:ncol(table1)-1)]
-
-					# Rename column headings depending on prediction intervals and what covariate comparison are selected
-						if (input$PI == 2) colnames(table1)[c(3,5)] <- c("5th Percentile","95th Percentile")
-						if (input$PI == 3) colnames(table1)[c(3,5)] <- c("2.5th Percentile","97.5th Percentile")
-						if (input$SIM_STUDY == 1) {
-							colnames(table1)[2] <- "Status"
-							table1$Status <- c("Fasted","Fed")
-						}
-						if (input$SIM_STUDY == 2) {
-							colnames(table1)[2] <- "Formulation"
-							table1$Formulation <- c("Doryx\\ MPC","Doryx\\ Tablet")
-						}
-						if (input$SIM_STUDY == 3) {
-							colnames(table1)[2] <- "Gender"
-							table1$Gender <- c("Female","Male")
-						}
-
-					# Format as an "xtable"
-					  table1x <- print(xtable(table1,align = c("l","l",rep("c",times = ncol(table1)-1))),include.rownames = FALSE,floating = FALSE,tabular.environment = "array",comment = FALSE,print.results = FALSE,sanitize.text.function = function(x) {x},sanitize.colnames.function = bold)
-						html <- paste0("$$",table1x,"$$")
-		        list(
-		          withMathJax(HTML(html))
-		        )
-				}	#Brackets closing expression for "withProgress"
-			)	#Brackets closing "withProgress"
-		})	# Brackets closing "renderUI"
-
-	# Right summary table
-		output$Rtable2 <- renderUI({
-			withProgress(
-				message = "Calculating summaries...",
-				value = 0,
-				{
-			  # Read in the necessary reactive expressions
-				  doryxMPC.data <- RdoryxMPC.data()
-					doryxTAB.data <- RdoryxTAB.data()
-				  summary.function <- Rsummary.function()
-					# Subset for the last time-point for each individual and combine the two formulation data frames together
-						doryxMPC.data.last <- ddply(doryxMPC.data, .(ID), oneperID)
-						doryxTAB.data.last <- ddply(doryxTAB.data, .(ID), oneperID)
-						data.last <- rbind(doryxMPC.data.last,doryxTAB.data.last)
-
-					# Summarise results for fed/fasted for doryxTAB data
-						if (input$SIM_STUDY == 1) {
-							# Summarise AUC
-						    AUC.table <- ddply(doryxTAB.data.last, .(FED), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(doryxTAB.data.last, .(FED), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(doryxTAB.data.last, .(FED), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$Tmax))
-						}
-					# Summarise results for MPC/TAB for fed
-						if (input$SIM_STUDY == 2) {
-							data.last.fasted <- data.last[data.last$FED == 1,]
-							# Summarise AUC
-						    AUC.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(data.last.fasted, .(TRT), function(data.last.fasted) summary.function(data.last.fasted$Tmax))
-						}
-					# Summarise results for male/female for doryxTAB.data
-						if (input$SIM_STUDY == 3) {
-							# Summarise AUC
-						    AUC.table <- ddply(doryxTAB.data.last, .(SEX), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$AUC))
-					    # Summarise Cmax (value will be found at time = 96)
-						    Cmax.table <- ddply(doryxTAB.data.last, .(SEX), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$Cmax))
-					    # Summarise Tmax (value will be found at time = 96)
-						    Tmax.table <- ddply(doryxTAB.data.last, .(SEX), function(doryxTAB.data.last) summary.function(doryxTAB.data.last$Tmax))
-						}
-
-					# Return data frame of combined results
-						table2 <- rbind(AUC.table,Cmax.table,Tmax.table)
-						table2$Variable <- c("AUC\\ (\\mu g*h/L)","AUC\\ (\\mu g*h/L)","Cmax\\ (\\mu g/L)","Cmax\\ (\\mu g/L)","Tmax\\ (h)","Tmax\\ (h)")
-						table2 <- table2[,c(ncol(table2),1:ncol(table2)-1)]
-
-					# Rename column headings depending on prediction intervals and what covariate comparison are selected
-						if (input$PI == 2) colnames(table2)[c(3,5)] <- c("5th Percentile","95th Percentile")
-						if (input$PI == 3) colnames(table2)[c(3,5)] <- c("2.5th Percentile","97.5th Percentile")
-						if (input$SIM_STUDY == 1) {
-							colnames(table2)[2] <- "Status"
-							table2$Status <- c("Fasted","Fed")
-						}
-						if (input$SIM_STUDY == 2) {
-							colnames(table2)[2] <- "Formulation"
-							table2$Formulation <- c("Doryx\\ MPC","Doryx\\ Tablet")
-						}
-						if (input$SIM_STUDY == 3) {
-							colnames(table2)[2] <- "Gender"
-							table2$Gender <- c("Female","Male")
-						}
-
-					# Format as an "xtable"
-					  table2x <- print(xtable(table2,align = c("l","l",rep("c",times = ncol(table2)-1))),include.rownames = FALSE,floating = FALSE,tabular.environment = "array",comment = FALSE,print.results = FALSE,sanitize.text.function = function(x) {x},sanitize.colnames.function = bold)
-						html <- paste0("$$",table2x,"$$")
-		        list(
-		          withMathJax(HTML(html))
-		        )
-				}	#Brackets closing expression for "withProgress"
-			)	#Brackets closing "withProgress"
-		})	#Brackets closing "renderUI"
+	# Summary of Time spent in Grade 4 Neutropenia for DOSE2
+		output$G4N1.text.DOSE2 <- renderText({
+			# Read in reactive data
+				pred.data2 <- Rpred.data2()
+				summary.data2 <- Rsummary.data2()
+			# Create a text object
+				pred.G4N1 <- round(tail(pred.data2$G4N1,1))	# PRED
+				G4N1.text.DOSE2 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours")
+				if (input$PI2 == TRUE) {
+					CIlo.G4N1 <- round(tail(summary.data2$CIlo_G4N1,1))	# 2.5th percentile
+					CIhi.G4N1 <- round(tail(summary.data2$CIhi_G4N1,1))	# 97.5th percentile
+					G4N1.text.DOSE2 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+				}
+				G4N1.text.DOSE2
+		})	# Brackets closing "renderText"
 
   #############
   ##_SESSION_##
@@ -431,4 +242,4 @@ shinyServer(function(input,output,session) {
   session$onSessionEnded(function() {
     stopApp()
   })
-})  #Brackets closing "shinyServer" function
+})  # Brackets closing "shinyServer" function

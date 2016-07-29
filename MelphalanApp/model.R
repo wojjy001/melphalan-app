@@ -1,5 +1,5 @@
 # Define the model parameters and equations
-# Using mrgsolve - analytical solutions
+# Using mrgsolve - differential equations
 # This compiled model is used for simulating n individuals and their concentration-time profiles
 code <- '
 $CMT			// Initial conditions for compartments
@@ -11,7 +11,7 @@ $CMT			// Initial conditions for compartments
 					TRANSIT2,	// Transit compartment 2 for PD
 					TRANSIT3, // Transit compartment 3 for PD
 					INPUT, // Input compartment for PD
-					TSN	// Time spent in severe neutropenia
+					G4N1	// Time spent in Grade 4 Neutropenia
 
 $PARAM		// Population pharmacokinetic parameters
 					POPCL = 28.9,	// Clearance, L/h (THETA1)
@@ -142,7 +142,7 @@ $MAIN			//////////////////////
 					TRANSIT2_0 = KE*BASE/K;
 					TRANSIT3_0 = KE*BASE/K;
 					INPUT_0 = IP0;
-					TSN_0 = 0;
+					G4N1_0 = 0;
 
 $ODE			//////////////////////
 					// PHARMACOKINETICS //
@@ -178,12 +178,10 @@ $ODE			//////////////////////
 					dxdt_TRANSIT2 = K*TRANSIT1 -K*TRANSIT2;
 					dxdt_TRANSIT3 = K*TRANSIT2 -K*TRANSIT3;
 					dxdt_INPUT = -KIN*INPUT;
-					dxdt_TSN = 0;
-					if (ANC < 0.5) dxdt_TSN = 1;
+					dxdt_G4N1 = 0;
+					if (ANC < 0.5) dxdt_G4N1 = 1;
 
 $TABLE		table(IPRE) = CENT/V1;
-
-$CAPTURE	CRCL HCT SEX FFM SLC7A5 GCSF RACE ANCBASE
 '
 # Compile the model code
 mod <- mcode("popMELPH",code)

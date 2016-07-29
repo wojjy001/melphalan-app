@@ -1,146 +1,94 @@
-# ui.R script for DoxyApp
-# The user-interface and widget input for the Shiny application is defined here
-# Sends user-defined input to server.R, calls created output from server.R
-# Now using shinydashboard for the user-interface
+# Define UI (user-interface) for MelphalanApp
+# Sends user-defined input to server.R
+# Calls created output from server.R
 # ------------------------------------------------------------------------------
-# Application's header
-header <-
-  dashboardHeader(
-		title = "Doxycycline",
-		titleWidth = 250
-	)	# Brackets closing "dashboardHeader"
-# Application's sidebar
-sidebar <-
-	dashboardSidebar(
-		width = 250,	# Width of sidebar the same as width of header
-		sidebarMenu(
-		  menuItem("About",tabName = "about",icon = icon("question-circle"),
-        menuSubItem("Objective",tabName = "objective",icon = icon("angle-double-right")),
-        menuSubItem("Model (mrgsolve code)",tabName = "model",icon = icon("angle-double-right")),
-        menuSubItem("Acknowledgements",tabName = "acknowledgements",icon = icon("angle-double-right"))
-      ),  # Brackets closing "menuItem"
-      menuItem("Simulations",tabName = "sim",icon = icon("line-chart"))
-		)	# Brackets closing "sidebarMenu"
-	) # Brackets closing "dashboardSidebar"
-# Application's body
-body <-
-	dashboardBody(
-    tags$head(
-			tags$link(rel = "stylesheet",type = "text/css",href = "custom.css")
-		),
-		tabItems(
-      tabItem(tabName = "objective",
-        includeMarkdown("objective.Rmd")
-			), # Brackets closing "tabItem" for "objective"
-      tabItem(tabName = "model",
-        pre(includeText("model.R"))
-      ),  # Brackets closing "tabItem" for "model"
-      tabItem(tabName = "acknowledgements",
-        includeMarkdown("acknowledgements.Rmd"),
-        img(src = "ACP_logo.png",width = 225,height = 75) # University of South Australia, Australian Centre for Pharmacometrics logo
-      ),  # Brackets closing "tabItem" for "acknowledgements"
-      tabItem(tabName = "sim",
-        box(
-          fixedRow(
-            column(4,
-              selectInput("DOSE_REG","Dose Regimen:",choices = list("Single-dose" = 1,"Multiple-dose (standard infection)" = 2,"Multiple-dose (severe infection)"= 3)),
-              fixedRow(
-                column(3,
-                  p(strong("Description:"))
-                ),  # Brackets closing "column"
-                column(9,
-                  conditionalPanel(condition = "input.DOSE_REG == 1",
-                    p("120 mg Doryx MPC over 96 hours ",em(strong("or"))),
-                    p("100 mg Doryx Tablet over 96 hours")
-                  ),  # Brackets closing "conditionalPanel"
-                  conditionalPanel(condition = "input.DOSE_REG == 2",
-                    p("120 mg Doryx MPC every 12 hours on Day 1, then 120 mg every 24 hours on Days 2 to 7 ",em(strong("or"))),
-                    p("100 mg Doryx Tablet every 12 hours on Day 1, then 100 mg every 24 hours on Days 2 to 7")
-                  ),  # Brackets closing "conditionalPanel"
-                  conditionalPanel(condition = "input.DOSE_REG == 3",
-                    p("120 mg Doryx MPC every 12 hours for 7 days ",em(strong("or"))),
-                    p("120 mg Doryx Tablet every 12 hours for 7 days")
-                  )  # Brackets closing "conditionalPanel"
-                ) # Brackets closingn "column"
-              ) # Brackets closing "fixedRow"
-            ),  # Brackets closing "column"
-            column(4,
-              selectInput("SIM_STUDY","Simulation Study:",choices = list("Fed versus Fasted" = 1,"Doryx MPC versus Doryx Tablet" = 2,"Male versus Female" = 3)),
-              fixedRow(
-                column(4,
-                  p(strong("Plot Legend:"))
-                ),  # Brackets closing "column"
-                column(8,
-                  conditionalPanel(condition = "input.SIM_STUDY == 1",
-                    p(strong("Fasted"),style = "color:#B22222"),
-                    p(strong("Fed"),style = "color:#3c8dbc")
-                  ),  # Brackets closing "conditionalPanel"
-                  conditionalPanel(condition = "input.SIM_STUDY == 2",
-                    p(strong("Doryx MPC"),style = "color:#B22222"),
-                    p(strong("Doryx Tablet"),style = "color:#3c8dbc")
-                  ),  # Brackets closing "conditionalPanel"
-                  conditionalPanel(condition = "input.SIM_STUDY == 3",
-                    p(strong("Female"),style = "color:#B22222"),
-                    p(strong("Male"),style = "color:#3c8dbc")
-                  )  # Brackets closing "conditionalPanel"
-                ) # Brackets closing "column"
-              ) # Brackets closing "fixedRow"
-            ),  # Brackets closing "column"
-            column(4,
-              selectInput("PI","Prediction intervals:",choices = list("No Prediction Intervals" = 1,"90% Prediction Intervals" = 2,"95% Prediction Intervals" = 3)),
-              checkboxInput("SUMSTATS","Show summary statistics tables",value = FALSE), # Calculate Tmax, Cmax and AUC. Show prediction intervals if a "type" of prediction intervals is previously selected (as above). Show for each facet if "FACET" is selected above.
-              checkboxInput("LOGS","Plot concentrations on a log-scale",value = FALSE)
-            ) # Brackets closing "column"
-          ),  # Brackets closing "fixedRow"
-          title = strong("Simulation Options"),
-          solidHeader = TRUE,
-          status = "primary",
-          width = 12
-        ),  # Brackets closing "box"
-        box(
-          fixedRow(
-            column(6,
-              conditionalPanel(condition = "input.SIM_STUDY == 1",
-                h4(strong("Doryx MPC"))
-              ),  # Brackets closing "conditionalPanel"
-              conditionalPanel(condition = "input.SIM_STUDY == 2",
-                h4(strong("Fasted"))
-              ),  # Brackets closing "conditionalPanel"
-              conditionalPanel(condition = "input.SIM_STUDY == 3",
-                h4(strong("Doryx MPC"))
-              ),  # Brackets closing "conditionalPanel"
-              plotOutput("Rplot1"),
-              conditionalPanel(condition = "input.SUMSTATS",
-                hr(),
-                uiOutput("Rtable1")
-              ) # Brackets closing "conditionalPanel"
-            ),  # Brackets closing "column"
-            column(6,
-              conditionalPanel(condition = "input.SIM_STUDY == 1",
-                h4(strong("Doryx Tablet"))
-              ),  # Brackets closing "conditionalPanel"
-              conditionalPanel(condition = "input.SIM_STUDY == 2",
-                h4(strong("Fed"))
-              ),  # Brackets closing "conditionalPanel"
-              conditionalPanel(condition = "input.SIM_STUDY == 3",
-                h4(strong("Doryx Tablet"))
-              ),  # Brackets closing "conditionalPanel"
-              plotOutput("Rplot2"),
-              conditionalPanel(condition = "input.SUMSTATS",
-                hr(),
-                uiOutput("Rtable2")
-              ) # Brackets closing "conditionalPanel"
-            ),  # Brackets closing "column"
-            align = "center"
-          ), # Brackets closing "fixedRow"
-          title = strong("Simulated Concentration-Time Profiles"),
-          solidHeader = TRUE,
-          status = "primary",
-          width = 12
-        ) # Brackets closing "box"
-      )  # Brackets closing "tabItem" for "sim"
-		)  # Brackets closing "tabItems"
-	) # Brackets closing "dashboardBody"
-# ------------------------------------------------------------------------------
-# User-interface Object
-  dashboardPage(header,sidebar,body,skin = "blue")
+fixedPage(
+	fixedRow(
+		h2("Melphalan", align = "center")	# Application Title
+	),	# Brackets closing "fixedRow"
+	hr(),	# Horizontal line - divider
+	sidebarLayout(
+		sidebarPanel(	# sidebarPanel containing user-defined widgets
+			h4("Patient Information"),	# Header for the following widgets
+			numericInput("AGE","Age (years):",min = 0,max = 100,value = 70, step = 1),	# Numeric input for patient's age
+			numericInput("TBW","Total Body Weight (kg):",min = 0,max = 150,value = 70,step = 0.1),	# Numeric input for patient's total body weight
+			numericInput("HT","Height (cm):",min = 0,max = 210,value = 170,step = 1),	# Numeric input for patient's height
+			uiOutput("BMI.text"),	# Patient's calculated body mass index (kg/m^2)
+			uiOutput("BSA.text"),	# Patient's calculated body surface area (m^2)
+			uiOutput("FFM.text"),	# Patient's calculated fat free mass (kg)
+			br(),
+			numericInput("SECR","Serum creatinine (µmol/L):",min = 0,max = 300,value = 70,step = 1),	# Numeric input for patient's serum creatinine
+			uiOutput("CRCL.text"),	# Patient's calculated creatinine clearance (mL/min)
+			br(),
+			numericInput("HCT","Haematocrit (%):",min = 0,max = 100,value = 32.5,step = 0.1),	# Numeric input for patient's haematocrit
+			numericInput("ANCBASE","Baseline Absolute Neutrophil Count (K/µL):",min = 0,max = 100,value = 3.5,step = 0.1), # Numeric input for patient's absolute neutrophil count
+			selectInput("SEX","Gender:",choices = list("Female" = 1,"Male" = 2),selected = 1),	# Select input for patient's gender
+			selectInput("RACE","Race/Ethnicity:",choices = list("Caucasian" = 1,"African-American" = 2,"Unknown" = 3),selected = 1),	# Select input for patient's race
+			selectInput("SLC7A5","SLC7A5 Genotype:",choices = list("AA or AG" = 1,"GG" = 2),selected = 1)	# Select input for patient's SLC7A5
+		),	# Brackets closing "sidebarPanel"
+		mainPanel(	# mainPanel containing output (plots)
+			tabsetPanel(
+				tabPanel("ANC Profile",
+					plotOutput("anc.plot")
+				),	# Brackets closing "tabPanel"
+				tabPanel("Duration of Severe Neutropenia"
+				),	# Brackets closing "tabPanel"
+				tabPanel("Melphalan Profile",
+					plotOutput("melph.plot")
+				)	# Brackets closing "tabPanel"
+			),	# Brackets closing "tabsetPanel"
+			hr(),
+			h4("Dosing Information"),	# Header for the following widgets
+			selectInput("NREG","Select number of dosing regimens to compare:",choices = list("1" = 1,"2" = 2,"3" = 3),selected = 1,width = 325),	# Select input for number of dosing regimens to compare
+			fixedRow(
+				column(6,
+					HTML('<h5 style="color:#FF0000">Regimen 1:</h5>')
+				),	# Brackets closing "column"
+				column(6,
+					checkboxInput("PI1",paste("Show 95% Prediction Intervals (n = ",n,")",sep=""),value = FALSE)
+				)	# Brackets closing "column"
+			),	# Brackets closing "fixedRow"
+			fixedRow(
+				column(6,
+					withMathJax(
+						sliderInput("DOSE1","Melphalan Dose (\\(mg/m^2\\)):",min = 0,max = 400,value = 100,step = 10)	# Slider input for Melphalan dose
+					)	# Brackets closing "withMathJax"
+				),	# Brackets closing "column"
+				column(6,
+					selectInput("GCSF1","Administration of G-CSF (Neupogen):",choices = list("Day 1" = 1,"Day 7" = 2),selected = 1)	# Select input for when to administer G-CSF (Neupogen)
+				)	# Brackets closing "column"
+			),	# Brackets closing "fixedRow"
+			fixedRow(
+				column(6,
+					textOutput("G4N1.text.DOSE1")
+				)	# Brackets closing "column"
+			),	# Brackets closing "fixedRow"
+			hr(),
+			conditionalPanel(condition = "input.NREG > 1",
+				fixedRow(
+					column(6,
+						HTML('<h5 style="color:#0000FF">Regimen 2:</h5>')
+					),	# Brackets closing "column"
+					column(6,
+						checkboxInput("PI2",paste("Show 95% Prediction Intervals (n = ",n,")",sep=""),value = FALSE)
+					)	# Brackets closing "column"
+				),	# Brackets closing "fixedRow"
+				fixedRow(
+					column(6,
+						withMathJax(
+							sliderInput("DOSE2","Melphalan Dose (\\(mg/m^2\\)):",min = 0,max = 400,value = 100,step = 10)	# Slider input for Melphalan dose
+						)	# Brackets closing "withMathJax"
+					),	# Brackets closing "column"
+					column(6,
+						selectInput("GCSF2","Administration of G-CSF (Neupogen):",choices = list("Day 1" = 1,"Day 7" = 2),selected = 1)	# Select input for when to administer G-CSF (Neupogen)
+					)	# Brackets closing "column"
+				),	# Brackets closing "fixedRow"
+				fixedRow(
+					column(6,
+						textOutput("G4N1.text.DOSE2")
+					)	# Brackets closing "column"
+				)	# Brackets closing "fixedRow"
+			)	# Brackets closing "conditionalPanel"
+		)	# Brackets closing "mainPanel"
+	)	# Brackets closing "sidebarLayout"
+)	# Brackets closing "fixedPage"
