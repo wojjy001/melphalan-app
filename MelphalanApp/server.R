@@ -101,15 +101,17 @@ shinyServer(function(input,output,session) {
 	# Simulate a population based on input characteristics
 	# Will have it's own specific dose and time of G-CSF administration
 		Rsim.data2 <- reactive({
-			# Read in reactive input.data
-				input.data <- Rinput.data()
-			# Read in simulation specific value for G-CSF
-				if (input$GCSF2 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
-			# Calculate amt to be administered based on patient's BSA and DOSE1
-				input.data$amt <- input.data$BSA*input$DOSE2
-		  # Simulate
-				sim.data2 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
-				sim.data2 <- as.data.frame(sim.data2)	#Convert to a data frame so that it is more useful for me!
+			if (input$NREG > 1) {
+				# Read in reactive input.data
+					input.data <- Rinput.data()
+				# Read in simulation specific value for G-CSF
+					if (input$GCSF2 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+				# Calculate amt to be administered based on patient's BSA and DOSE1
+					input.data$amt <- input.data$BSA*input$DOSE2
+			  # Simulate
+					sim.data2 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+					sim.data2 <- as.data.frame(sim.data2)	#Convert to a data frame so that it is more useful for me!
+			}
 		})	# Brackets closing "Rsim.data2"
 
 	# Create a data frame that only contains the "PRED" data
@@ -129,78 +131,175 @@ shinyServer(function(input,output,session) {
 				summary.data2 <- ddply(sim.data2, .(time), summary.function)
 		})	# Brackets closing "Rsummary.data2"
 
+	###########
+	##_DOSE3_##
+	###########
+
+	# Simulate a population based on input characteristics
+	# Will have it's own specific dose and time of G-CSF administration
+		Rsim.data3 <- reactive({
+			if (input$NREG > 2) {
+				# Read in reactive input.data
+					input.data <- Rinput.data()
+				# Read in simulation specific value for G-CSF
+					if (input$GCSF3 == 3) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+				# Calculate amt to be administered based on patient's BSA and DOSE1
+					input.data$amt <- input.data$BSA*input$DOSE3
+			  # Simulate
+					sim.data3 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+					sim.data3 <- as.data.frame(sim.data3)	#Convert to a data frame so that it is more useful for me!
+			}
+		})	# Brackets closing "Rsim.data3"
+
+	# Create a data frame that only contains the "PRED" data
+		Rpred.data3 <- reactive({
+			# Read in reactive expressions
+				sim.data3 <- Rsim.data3()
+			# Subset out only ID == 1 (PRED individual)
+				pred.data3 <- sim.data3[sim.data3$ID == 1,]
+		})	# Brackets closing "Rpred.data3"
+
+	# Summarise simulated data as prediction intervals when option is selected
+		Rsummary.data3 <- reactive({
+			# Read in reactive expressions
+				sim.data3 <- Rsim.data3()
+			# Summarise data
+				sim.data3 <- sim.data3[sim.data3$ID != 1,]	# Do not include ID == 1 - they are PRED
+				summary.data3 <- ddply(sim.data3, .(time), summary.function)
+		})	# Brackets closing "Rsummary.data3"
+
 	############
 	##_OUTPUT_##
 	############
 	output$BMI.text <- renderUI({
 		input.data <- Rinput.data()
-		withMathJax(helpText("Body mass index = ",round(input.data$BMI[1],digits = 1)," \\(kg/m^2\\)"))
+		withMathJax(paste0("Body mass index = ",round(input.data$BMI[1],digits = 1)," \\(kg/m^2\\)"))
 	})	# Brackets closing "renderUI" expression
 
 	output$BSA.text <- renderUI({
 		input.data <- Rinput.data()
-		withMathJax(helpText("Body surface area = ",round(input.data$BSA[1],digits = 1)," \\(m^2\\)"))
+		withMathJax(paste0("Body surface area = ",round(input.data$BSA[1],digits = 1)," \\(m^2\\)"))
 	})	# Brackets closing "renderUI" expression
 
 	output$FFM.text <- renderUI({
 		input.data <- Rinput.data()
-		helpText("Fat free mass = ",round(input.data$FFM[1],digits = 1)," \\(kg\\)")
+		withMathJax(paste0("Fat free mass = ",round(input.data$FFM[1],digits = 1)," \\(kg\\)"))
 	})	# Brackets closing "renderUI" expression
 
 	output$CRCL.text <- renderUI({
 		input.data <- Rinput.data()
-		helpText("Creatinine clearance = ",round(input.data$CRCL[1],digits = 1)," \\(mL/min\\)")
+		withMathJax(paste0("Creatinine clearance = ",round(input.data$CRCL[1],digits = 1)," \\(mL/min\\)"))
 	})	# Brackets closing "renderUI" expression
 
 	# Simulation results for ANC
 		output$anc.plot <- renderPlot({
 			# Read in reactive data
 				pred.data1 <- Rpred.data1()
-				pred.data2 <- Rpred.data2()
 				summary.data1 <- Rsummary.data1()
-				summary.data2 <- Rsummary.data2()
+			# Only read in reactive data if regimen has been selected
+				if (input$NREG > 1) {
+					pred.data2 <- Rpred.data2()
+					summary.data2 <- Rsummary.data2()
+				}
+				if (input$NREG > 2) {
+					pred.data3 <- Rpred.data3()
+					summary.data3 <- Rsummary.data3()
+				}
 
 			# Plot ANC over time
 				plotobj1 <- NULL
 				plotobj1 <- ggplot()
 			# Population predicted
-				plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data1,colour = "red",size = 1)	# DOSE1
-				if (input$NREG > 1) plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data2,colour = "blue",size = 1)	# DOSE2
+				plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data1,colour = "#F8766D",size = 1)	# DOSE1
+				if (input$NREG > 1) plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data2,colour = "#619CFF",size = 1)	# DOSE2
+				if (input$NREG > 2) plotobj1 <- plotobj1 + geom_line(aes(x = time,y = ANC),data = pred.data3,colour = "#00BA38",size = 1)	# DOSE3
 			# 95% prediction intervals
-				if (input$PI1 == TRUE) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data1,fill = "red",alpha = 0.3)	# DOSE1
-				if (input$PI2 == TRUE & input$NREG > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data2,fill = "blue",alpha = 0.3)	# DOSE2
+				if (input$PI == TRUE) {
+					plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data1,fill = "#F8766D",alpha = 0.3)	# DOSE1
+					if (input$NREG > 1) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data2,fill = "#619CFF",alpha = 0.3)	# DOSE2
+					if (input$NREG > 2) plotobj1 <- plotobj1 + geom_ribbon(aes(x = time,ymin = CIlo_ANC,ymax = CIhi_ANC),data = summary.data3,fill = "#00BA38",alpha = 0.3)	# DOSE3
+				}
 			# Grade 4 neutropenia
 				plotobj1 <- plotobj1 + geom_hline(aes(yintercept = 0.5),linetype = "dashed")
-				plotobj1 <- plotobj1 + annotate("text",x = 648,y = 0.8,label = "Grade 4 Neutropenia",size = 5)
+				plotobj1 <- plotobj1 + annotate("text",x = 648,y = 0.6,label = "Grade 4 Neutropenia",size = 5)
 			# Axes
-				plotobj1 <- plotobj1 + scale_x_continuous("\nTime since melphalan dose (days)",breaks = seq(from = 0,to = max(time.PD),by = 100))
-				plotobj1 <- plotobj1 + scale_y_log10("Absolute Neutrophil Count (K/µL)\n",breaks = log.plot.breaks,labels = log.plot.breaks,lim = c(0.0001,NA))
+				plotobj1 <- plotobj1 + scale_x_continuous("\nTime since Melphalan Dose (days)",breaks = seq(from = 0,to = max(time.PD),by = 100))
+				plotobj1 <- plotobj1 + scale_y_log10("Absolute Neutrophil Count (K/µL)\n",breaks = log.plot.breaks,labels = log.plot.breaks)
 			# Return plot
 				print(plotobj1)
+		})	# Brackets closing "renderPlot"
+
+	# Simulate results of time spent in Grade 4 neutropenia
+		output$g4n.plot <- renderPlot({
+			# Read in reactive data
+				pred.data1 <- Rpred.data1()
+				summary.data1 <- Rsummary.data1()
+			# Only read in reactive data if regimen has been selected
+				if (input$NREG > 1) {
+					pred.data2 <- Rpred.data2()
+					summary.data2 <- Rsummary.data2()
+				}
+				if (input$NREG > 2) {
+					pred.data3 <- Rpred.data3()
+					summary.data3 <- Rsummary.data3()
+				}
+
+			# Plot PRED time spent in G4N and error bars
+				plotobj2 <- NULL
+				plotobj2 <- ggplot()
+			# Population predicted
+				plotobj2 <- plotobj2 + geom_point(aes(x = input$DOSE1,y = tail(pred.data1$G4N1,1)),size = 3,colour = "#F8766D")	# DOSE1
+				if (input$NREG > 1) plotobj2 <- plotobj2 + geom_point(aes(x = input$DOSE2,y = tail(pred.data2$G4N1,1)),size = 3,colour = "#619CFF")	# DOSE2
+				if (input$NREG > 2) plotobj2 <- plotobj2 + geom_point(aes(x = input$DOSE3,y = tail(pred.data3$G4N1,1)),size = 3,colour = "#00BA38")	# DOSE1
+			# 95% prediction intervals (error bars)
+			 	if (input$PI == TRUE) {
+					plotobj2 <- plotobj2 + geom_errorbar(aes(x = input$DOSE1,ymin = tail(summary.data1$CIlo_G4N1,1),ymax = tail(summary.data1$CIhi_G4N1,1)),width = 5,colour = "#F8766D")	# DOSE1
+					if (input$NREG > 1) plotobj2 <- plotobj2 + geom_errorbar(aes(x = input$DOSE2,ymin = tail(summary.data2$CIlo_G4N1,1),ymax = tail(summary.data2$CIhi_G4N1,1)),width = 5,colour = "#619CFF")	# DOSE1
+					if (input$NREG > 2) plotobj2 <- plotobj2 + geom_errorbar(aes(x = input$DOSE3,ymin = tail(summary.data3$CIlo_G4N1,1),ymax = tail(summary.data3$CIhi_G4N1,1)),width = 5,colour = "#00BA38")	# DOSE1
+				}
+			# Axes
+				plotobj2 <- plotobj2 + xlab(expression(paste("Melphalan Dose (",mg/m^2,")")))
+				if (input$NREG == 1) plotobj2 <- plotobj2 + scale_x_continuous(breaks = c(input$DOSE1),labels = c(input$DOSE1))
+				if (input$NREG > 1) plotobj2 <- plotobj2 + scale_x_continuous(breaks = c(input$DOSE1,input$DOSE2),labels = c(input$DOSE1,input$DOSE2))
+				if (input$NREG > 2) plotobj2 <- plotobj2 + scale_x_continuous(breaks = c(input$DOSE1,input$DOSE2,input$DOSE3),labels = c(input$DOSE1,input$DOSE2,input$DOSE3))
+				plotobj2 <- plotobj2 + scale_y_continuous("Time Spent in Grade 4 Neutropenia (hours)\n")
+			# Return plot
+				print(plotobj2)
 		})	# Brackets closing "renderPlot"
 
 	# Simulation results for melphalan concentrations
 		output$melph.plot <- renderPlot({
 			# Read in reactive data
-			pred.data1 <- Rpred.data1()
-			pred.data2 <- Rpred.data2()
-			summary.data1 <- Rsummary.data1()
-			summary.data2 <- Rsummary.data2()
+				pred.data1 <- Rpred.data1()
+				summary.data1 <- Rsummary.data1()
+			# Only read in reactive data if regimen has been selected
+				if (input$NREG > 1) {
+					pred.data2 <- Rpred.data2()
+					summary.data2 <- Rsummary.data2()
+				}
+				if (input$NREG > 2) {
+					pred.data3 <- Rpred.data3()
+					summary.data3 <- Rsummary.data3()
+				}
 
 			# Plot ANC over time
-				plotobj2 <- NULL
-				plotobj2 <- ggplot()
+				plotobj3 <- NULL
+				plotobj3 <- ggplot()
 			# Population predicted
-				plotobj2 <- plotobj2 + geom_line(aes(x = time,y = IPRE),data = pred.data1,colour = "red",size = 1)	# DOSE1
-				if (input$NREG > 1) plotobj2 <- plotobj2 + geom_line(aes(x = time,y = IPRE),data = pred.data2,colour = "blue",size = 1)	# DOSE2
+				plotobj3 <- plotobj3 + geom_line(aes(x = time,y = IPRE),data = pred.data1,colour = "#F8766D",size = 1)	# DOSE1
+				if (input$NREG > 1) plotobj3 <- plotobj3 + geom_line(aes(x = time,y = IPRE),data = pred.data2,colour = "#619CFF",size = 1)	# DOSE2
+				if (input$NREG > 2) plotobj3 <- plotobj3 + geom_line(aes(x = time,y = IPRE),data = pred.data3,colour = "#00BA38",size = 1)	# DOSE3
 			# 95% prediction intervals
-				if (input$PI1 == TRUE) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data1,fill = "red",alpha = 0.3)	# DOSE1
-				if (input$PI2 == TRUE & input$NREG > 1) plotobj2 <- plotobj2 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data2,fill = "blue",alpha = 0.3)	# DOSE2
+				if (input$PI == TRUE) {
+					plotobj3 <- plotobj3 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data1,fill = "#F8766D",alpha = 0.3)	# DOSE1
+					if (input$NREG > 1) plotobj3 <- plotobj3 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data2,fill = "#619CFF",alpha = 0.3)	# DOSE2
+					if (input$NREG > 2) plotobj3 <- plotobj3 + geom_ribbon(aes(x = time,ymin = CIlo_IPRE,ymax = CIhi_IPRE),data = summary.data3,fill = "#00BA38",alpha = 0.3)	# DOSE3
+				}
 			# Axes
-				plotobj2 <- plotobj2 + scale_x_continuous("\nTime since melphalan dose (hours)",lim = c(0,12))
-				plotobj2 <- plotobj2 + scale_y_log10("Melphalan Concentration (mg/L)\n",lim = c(0.001,NA),breaks = log.plot.breaks,labels = log.plot.breaks)
+				plotobj3 <- plotobj3 + scale_x_continuous("\nTime since Melphalan Dose (hours)",lim = c(0,13))
+				plotobj3 <- plotobj3 + scale_y_log10("Melphalan Concentration (mg/L)\n",lim = c(0.001,NA),breaks = log.plot.breaks,labels = log.plot.breaks)
 			# Return plot
-				print(plotobj2)
+				print(plotobj3)
 		})	# Brackets closing "renderPlot"
 
 	# Summary of Time spent in Grade 4 Neutropenia for DOSE1
@@ -210,11 +309,11 @@ shinyServer(function(input,output,session) {
 				summary.data1 <- Rsummary.data1()
 			# Create a text object
 				pred.G4N1 <- round(tail(pred.data1$G4N1,1))	# PRED
-				G4N1.text.DOSE1 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours")
-				if (input$PI1 == TRUE) {
+				G4N1.text.DOSE1 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
+				if (input$PI == TRUE) {
 					CIlo.G4N1 <- round(tail(summary.data1$CIlo_G4N1,1))	# 2.5th percentile
 					CIhi.G4N1 <- round(tail(summary.data1$CIhi_G4N1,1))	# 97.5th percentile
-					G4N1.text.DOSE1 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+					G4N1.text.DOSE1 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
 				}
 				G4N1.text.DOSE1
 		})	# Brackets closing "renderText"
@@ -226,13 +325,29 @@ shinyServer(function(input,output,session) {
 				summary.data2 <- Rsummary.data2()
 			# Create a text object
 				pred.G4N1 <- round(tail(pred.data2$G4N1,1))	# PRED
-				G4N1.text.DOSE2 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours")
-				if (input$PI2 == TRUE) {
+				G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
+				if (input$PI == TRUE) {
 					CIlo.G4N1 <- round(tail(summary.data2$CIlo_G4N1,1))	# 2.5th percentile
 					CIhi.G4N1 <- round(tail(summary.data2$CIhi_G4N1,1))	# 97.5th percentile
-					G4N1.text.DOSE2 <- paste0("Duration on Severe Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+					G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
 				}
 				G4N1.text.DOSE2
+		})	# Brackets closing "renderText"
+
+	# Summary of Time spent in Grade 4 Neutropenia for DOSE3
+		output$G4N1.text.DOSE3 <- renderText({
+			# Read in reactive data
+				pred.data3 <- Rpred.data3()
+				summary.data3 <- Rsummary.data3()
+			# Create a text object
+				pred.G4N1 <- round(tail(pred.data3$G4N1,1))	# PRED
+				G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
+				if (input$PI == TRUE) {
+					CIlo.G4N1 <- round(tail(summary.data3$CIlo_G4N1,1))	# 3.5th percentile
+					CIhi.G4N1 <- round(tail(summary.data3$CIhi_G4N1,1))	# 97.5th percentile
+					G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+				}
+				G4N1.text.DOSE3
 		})	# Brackets closing "renderText"
 
   #############

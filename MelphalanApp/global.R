@@ -10,13 +10,9 @@
   library(plyr)  # Split and rearrange data, ddply function
   library(dplyr)  # New plyr
   library(mrgsolve) # Metrum differential equation solver for pharmacometrics
-  library(xtable) # Formatting tables
 
 # Define a custom ggplot2 theme
   theme_bw2 <- theme_set(theme_bw(base_size = 14))
-
-# Function for making column headings in "bold"
-  bold <- function(x) {paste0('{\\textbf{',x,'}}')}
 
 # Source model code
   source("model.R")
@@ -24,15 +20,15 @@
 # ------------------------------------------------------------------------------
 # Define time sequence - using mrgsolve's tgrid function
   # Simulate concentrations and ANC for 30 day time-period (720 hours)
-    time.PK <- seq(from = 0,to = 12,by = 0.25) # Intense sampling for PK concentrations
-    time.PD <- seq(from = 0,to = 720,by = 12)  # Daily sampling for ANC
+    time.PK <- sort(c(seq(from = 0,to = 2,by = 0.1),seq(from = 2.25,to = 12,by = 0.25))) # Intense sampling for PK concentrations
+    time.PD <- seq(from = 24,to = 720,by = 12)  # Daily sampling for ANC
     time <- sort(c(unique(c(time.PK,time.PD))))
 
 # Plot breaks
   log.plot.breaks <- c(0.001,0.01,0.1,1,10,100,1000,10000)
 
 # Set number of individuals that make up the 95% prediction intervals
-	n <- 2000
+	n <- 1000
 # Set seed for reproducible numbers
 	set.seed(123456)
 # One per ID function
