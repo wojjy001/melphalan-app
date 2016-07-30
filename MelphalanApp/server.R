@@ -320,34 +320,38 @@ shinyServer(function(input,output,session) {
 
 	# Summary of Time spent in Grade 4 Neutropenia for DOSE2
 		output$G4N1.text.DOSE2 <- renderText({
-			# Read in reactive data
-				pred.data2 <- Rpred.data2()
-				summary.data2 <- Rsummary.data2()
-			# Create a text object
-				pred.G4N1 <- round(tail(pred.data2$G4N1,1))	# PRED
-				G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
-				if (input$PI == TRUE) {
-					CIlo.G4N1 <- round(tail(summary.data2$CIlo_G4N1,1))	# 2.5th percentile
-					CIhi.G4N1 <- round(tail(summary.data2$CIhi_G4N1,1))	# 97.5th percentile
-					G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
-				}
-				G4N1.text.DOSE2
+			if (input$NREG > 1) {
+				# Read in reactive data
+					pred.data2 <- Rpred.data2()
+					summary.data2 <- Rsummary.data2()
+				# Create a text object
+					pred.G4N1 <- round(tail(pred.data2$G4N1,1))	# PRED
+					G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
+					if (input$PI == TRUE) {
+						CIlo.G4N1 <- round(tail(summary.data2$CIlo_G4N1,1))	# 2.5th percentile
+						CIhi.G4N1 <- round(tail(summary.data2$CIhi_G4N1,1))	# 97.5th percentile
+						G4N1.text.DOSE2 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+					}
+					G4N1.text.DOSE2
+			}
 		})	# Brackets closing "renderText"
 
 	# Summary of Time spent in Grade 4 Neutropenia for DOSE3
 		output$G4N1.text.DOSE3 <- renderText({
-			# Read in reactive data
-				pred.data3 <- Rpred.data3()
-				summary.data3 <- Rsummary.data3()
-			# Create a text object
-				pred.G4N1 <- round(tail(pred.data3$G4N1,1))	# PRED
-				G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
-				if (input$PI == TRUE) {
-					CIlo.G4N1 <- round(tail(summary.data3$CIlo_G4N1,1))	# 3.5th percentile
-					CIhi.G4N1 <- round(tail(summary.data3$CIhi_G4N1,1))	# 97.5th percentile
-					G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
-				}
-				G4N1.text.DOSE3
+			if (input$NREG > 2) {
+				# Read in reactive data
+					pred.data3 <- Rpred.data3()
+					summary.data3 <- Rsummary.data3()
+				# Create a text object
+					pred.G4N1 <- round(tail(pred.data3$G4N1,1))	# PRED
+					G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours")
+					if (input$PI == TRUE) {
+						CIlo.G4N1 <- round(tail(summary.data3$CIlo_G4N1,1))	# 3.5th percentile
+						CIhi.G4N1 <- round(tail(summary.data3$CIhi_G4N1,1))	# 97.5th percentile
+						G4N1.text.DOSE3 <- paste0("Duration in Grade 4 Neutropenia = ",pred.G4N1," hours (",CIlo.G4N1," - ",CIhi.G4N1,")")
+					}
+					G4N1.text.DOSE3
+			}
 		})	# Brackets closing "renderText"
 
   #############
