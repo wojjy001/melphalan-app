@@ -129,7 +129,7 @@ $MAIN			//////////////////////
 					double SLOPE = POPSLOPE*GCSFCOV_SLOPE*SEXCOV_SLOPE*pow(HCT/32.5,HCT_SLOPE)*exp(BSVSLOPE);
 					double MTT = POPMTT*GCSFCOV_MTT*RACECOV_MTT*pow(CRCL/91.94,CRCL_MTT)*exp(BSVMTT);
 					double KE = log(2)/POPTHALF;
-					double IP0 = ON_IP0*POPIP01+(1-ON_IP0)*POPIP02*exp(BSVIP0);
+					double IP0 = (ON_IP0*POPIP01+(1-ON_IP0)*POPIP02)*exp(BSVIP0);
 					double IPT = POPIPT;
 
 					// Individual rate constants
