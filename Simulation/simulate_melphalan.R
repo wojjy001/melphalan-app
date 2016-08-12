@@ -10,9 +10,9 @@
 
 # ------------------------------------------------------------------------------
 # Define time sequence - using mrgsolve's tgrid function
-	TIME.tgrid <- c(tgrid(0.5,10,0.5),tgrid(24,720,24))
+	TIME.tgrid <- c(tgrid(0.25,24,0.25),tgrid(24,720,24))
 # Set number of individuals that make up the 95% prediction intervals
-	n <- 50
+	n <- 1000
 # 95% prediction interval functions - calculate the 2.5th and 97.5th percentiles
 	CI95lo <- function(x) quantile(x,probs = 0.025)
 	CI95hi <- function(x) quantile(x,probs = 0.975)
@@ -38,7 +38,7 @@ code <- '
           TRANSIT3, // Transit compartment 3 for PD
           INPUT, // Input compartment for PD
           G4N1	// Time spent in Grade 4 Neutropenia
-  
+
   $PARAM
           // Population pharmacokinetic parameters
           POPCL = 28.9,	// Clearance, L/h (THETA1)
@@ -47,7 +47,7 @@ code <- '
           POPV2 = 20.9,	// Volume of peripheral compartment, L (THETA4)
           SHARE_ETA = 1.31,	// ETA shared between CL and V2 (THETA5)
           W = 0.693,	// Standard deviation of residuals for PK (THETA9)
-  
+
           // Population pharmacodynamic parameters
           POPBASE = 5.66, // (THETA10)
           POPSLOPE = 7.41,	// (THETA11)
@@ -56,7 +56,7 @@ code <- '
           POPIP01 = 109,	// (THETA16)
           POPIP02 = 0.0564,	// (THETA17)
           POPIPT = 14.7,	// (THETA18)
-  
+
           // Covariate effects
           CRCL_CL = 0.193,	// Effect of CrCL on CL (THETA6)
           SLC7A5_V2 = -0.130,	// Effect of SLC7A5 on V2 (THETA7)
@@ -71,7 +71,7 @@ code <- '
           SEX_SLOPE = 0.214,	// Effect of SEX on SLOPE (THETA24)
           HCT_SLOPE = 0.646,	// Effect of HCT on SLOPE (THETA25)
           HCT_BASE = 0.582,	// Effect of HCT on BASE (THETA26)
-  
+
           // Default covariate values for simulation
           CRCL = 91.94,	// Creatinine clearance (mL/min)
           HCT = 32.5,	// Haematocrit (%)
@@ -80,8 +80,8 @@ code <- '
           SLC7A5 = 0,	// AA or AG (0) versus GG (1)
           GCSF = 0,	// Neupogen administered on Day 1 (0) or Day 7 (1)
           RACE = 0,	// Caucasian or unknown (0) versus African-American (1)
-          ANCBASE = 3.5	// Baseline ANC (K/µL)
-  
+          ANCBASE = 3.5	// Baseline ANC (K/ï¿½L)
+
   $OMEGA
           name = "BSV"
           block = FALSE
@@ -93,25 +93,25 @@ code <- '
           0.0631	// BSVSLOPE
           0.00561	// BSVMTT
           0.23	// BSVIP0
-  
+
   $SIGMA
           block = FALSE
           labels = s(ERRPK,ERRPD)
           0.0584	// Log-normal proportional error for PK observations
           1	// Additive error for PD observations
-  
+
   $MAIN
           //////////////////////
           // PHARMACOKINETICS //
           //////////////////////
-  
+
           // Infusion duration
           D_CENT = 0.5;	// 30 minutes
-          
+
           // Covariate effects
           double SLC7A5COV_V2 = 1;
           if (SLC7A5 == 1) SLC7A5COV_V2 = 1 + SLC7A5_V2;
-          
+
           // Individual parameter values
           if (ID == 1) {
           BSVCL = 0;
@@ -122,20 +122,20 @@ code <- '
           double V1 = POPV1*(FFM/59.9)*exp(BSVV1);
           double Q = POPQ*pow(FFM/59.9,0.75)*exp(BSVQ);
           double V2 = POPV2*(FFM/59.9)*SLC7A5COV_V2*exp(BSVCL*SHARE_ETA);
-  
+
           // Individual micro-rate constants
           double K10 = CL/V1;
           double K12 = Q/V1;
           double K21 = Q/V2;
-          
+
           // Initial conditions
           CENT_0 = 0;
           PERI_0 = 0;
-  
+
           //////////////////////
           // PHARMACODYNAMICS //
           //////////////////////
-          
+
           // Covariate effects
           double GCSFCOV_SLOPE = 1;
           if (GCSF == 1) GCSFCOV_SLOPE = 1 + GCSF_SLOPE;
@@ -147,7 +147,7 @@ code <- '
           if (RACE == 1) RACECOV_MTT = 1 + RACE_MTT;
           double ON_IP0 = 1;
           if (GCSF == 1) ON_IP0 = 0;
-          
+
           // Population parameter values
           if (ID == 1) {
           BSVBASE = 0;
@@ -159,12 +159,12 @@ code <- '
           double SLOPE = POPSLOPE*GCSFCOV_SLOPE*SEXCOV_SLOPE*pow(HCT/32.5,HCT_SLOPE)*exp(BSVSLOPE);
           double MTT = POPMTT*GCSFCOV_MTT*RACECOV_MTT*pow(CRCL/91.94,CRCL_MTT)*exp(BSVMTT);
           double KE = log(2)/POPTHALF;
-          double IP0 = ON_IP0*POPIP01+(1-ON_IP0)*POPIP02*exp(BSVIP0);
+          double IP0 = (ON_IP0*POPIP01+(1-ON_IP0)*POPIP02)*exp(BSVIP0);
           double IPT = POPIPT;
-          
+
           // Individual rate constants
           double K = 4/MTT;
-          
+
           // Initial conditions
           STEM_0 = KE*BASE/K;
           ANC_0 = BASE;
@@ -173,20 +173,20 @@ code <- '
           TRANSIT3_0 = KE*BASE/K;
           INPUT_0 = IP0;
           G4N1_0 = 0;
-  
+
   $ODE
           //////////////////////
           // PHARMACOKINETICS //
           //////////////////////
-          
+
           // Differential equations
           dxdt_CENT = K21*PERI -K10*CENT -K12*CENT;
           dxdt_PERI = K12*CENT -K21*PERI;
-          
+
           //////////////////////
           // PHARMACODYNAMICS //
           //////////////////////
-          
+
           // Other variables required for differential equations
           double QN = 0;
           if ((GCSF == 0) & (SOLVERTIME > 72)) QN = 1;
@@ -194,14 +194,14 @@ code <- '
           double POWER1 = ENDO_POWER1 + QN*NEUP_POWER1;
           double FN = pow(BASE/0.001,POWER1);
           if (ANC > 0.001) FN = pow(BASE/ANC,POWER1);
-          
+
           double KIN = 0;
           if ((GCSF == 0) & (SOLVERTIME > 72)) KIN = 1/IPT;
           if ((GCSF == 1) & (SOLVERTIME > 216)) KIN = 1/IPT;
-          
+
           double CP = CENT/V1;
           double DRUG = SLOPE*CP;
-  
+
           // Differential equations
           dxdt_STEM = K*STEM*(1-DRUG)*FN -K*STEM;
           dxdt_ANC = K*TRANSIT3 -KE*ANC +KIN*INPUT;
@@ -211,8 +211,8 @@ code <- '
           dxdt_INPUT = -KIN*INPUT;
           dxdt_G4N1 = 0;
           if (ANC < 0.5) dxdt_G4N1 = 1;
-  
-  $TABLE 
+
+  $TABLE
           table(IPRE) = CENT/V1;
 '
 	# Compile the model code
