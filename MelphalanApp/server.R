@@ -30,10 +30,10 @@ shinyServer(function(input,output,session) {
 					BSA <- sqrt((HT*TBW)/3600)	# Use to calculate amount to be administered
 				# Creatinine clearance (CRCL) and fat free mass (FFM) based on gender
 					if (SEX == 0) {	# Females
-						CRCL <- (((140-AGE)*TBW)/(SECR*0.815))*0.85
+						CRCL <- (((140-AGE)*TBW)/(SECR*72))*0.85
 						FFM <- 9270*TBW/(8780+(244*BMI))
 					} else {	# Males
-						CRCL <- ((140-AGE)*TBW)/(SECR*0.815)
+						CRCL <- ((140-AGE)*TBW)/(SECR*72)
 						FFM <- 9270*TBW/(6680+(216*BMI))
 					}
 

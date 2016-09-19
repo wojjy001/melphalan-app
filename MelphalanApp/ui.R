@@ -33,7 +33,7 @@ sidebar <-
 				),	# Brackets closing "fixedRow"
 				fixedRow(
 					column(11,offset = 1,
-						numericInput("SECR","Serum creatinine (µmol/L):",min = 0,max = 300,value = 70,step = 1)	# Numeric input for patient's serum creatinine
+						numericInput("SECR","Serum creatinine (mg/dL):",min = 0,max = 10,value = 1,step = 0.01)	# Numeric input for patient's serum creatinine
 					)	# Brackets closing "column"
 				),	# Brackets closing "fixedRow"
 				fixedRow(
