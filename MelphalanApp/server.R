@@ -27,7 +27,7 @@ shinyServer(function(input,output,session) {
 				# Body mass index (BMI)
 					BMI <- TBW/(HT/100)^2	# Used to calculate fat free mass
 				# Body surface area (BSA)
-					BSA <- sqrt((HT*TBW)/3600)	# Use to calculate amount to be administered
+					BSA <- 0.007184*(TBW^0.425)*(HT^0.725)	# Based on the Du Bois formula
 				# Creatinine clearance (CRCL) and fat free mass (FFM) based on gender
 					if (SEX == 0) {	# Females
 						CRCL <- (((140-AGE)*TBW)/(SECR*72))*0.85
@@ -66,15 +66,21 @@ shinyServer(function(input,output,session) {
 	# Simulate a population based on input characteristics
 	# Will have it's own specific dose and time of G-CSF administration
 		Rsim.data1 <- reactive({
-			# Read in reactive input.data
-				input.data <- Rinput.data()
-			# Read in simulation specific value for G-CSF
-				if (input$GCSF1 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
-			# Calculate amt to be administered based on patient's BSA and DOSE1
-				input.data$amt <- input.data$BSA*input$DOSE1
-		  # Simulate
-				sim.data1 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
-				sim.data1 <- as.data.frame(sim.data1)	#Convert to a data frame so that it is more useful for me!
+			withProgress(
+				message = "Simulating profiles...",
+				value = 0,
+				{
+					# Read in reactive input.data
+						input.data <- Rinput.data()
+					# Read in simulation specific value for G-CSF
+						if (input$GCSF1 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+					# Calculate amt to be administered based on patient's BSA and DOSE1
+						input.data$amt <- input.data$BSA*input$DOSE1
+					# Simulate
+						sim.data1 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+						sim.data1 <- as.data.frame(sim.data1)	#Convert to a data frame so that it is more useful for me!
+				}
+			)	# Brackets closing "withProgress"
 		})	# Brackets closing "Rsim.data1"
 
 	# Create a data frame that only contains the "PRED" data
@@ -101,17 +107,23 @@ shinyServer(function(input,output,session) {
 	# Simulate a population based on input characteristics
 	# Will have it's own specific dose and time of G-CSF administration
 		Rsim.data2 <- reactive({
-			if (input$NREG > 1) {
-				# Read in reactive input.data
-					input.data <- Rinput.data()
-				# Read in simulation specific value for G-CSF
-					if (input$GCSF2 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
-				# Calculate amt to be administered based on patient's BSA and DOSE1
-					input.data$amt <- input.data$BSA*input$DOSE2
-			  # Simulate
-					sim.data2 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
-					sim.data2 <- as.data.frame(sim.data2)	#Convert to a data frame so that it is more useful for me!
-			}
+			withProgress(
+				message = "Simulating profiles...",
+				value = 0,
+				{
+					if (input$NREG > 1) {
+						# Read in reactive input.data
+							input.data <- Rinput.data()
+						# Read in simulation specific value for G-CSF
+							if (input$GCSF2 == 2) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+						# Calculate amt to be administered based on patient's BSA and DOSE1
+							input.data$amt <- input.data$BSA*input$DOSE2
+					  # Simulate
+							sim.data2 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+							sim.data2 <- as.data.frame(sim.data2)	#Convert to a data frame so that it is more useful for me!
+					}
+				}
+			)	# Brackets closing "withProgress"
 		})	# Brackets closing "Rsim.data2"
 
 	# Create a data frame that only contains the "PRED" data
@@ -138,17 +150,23 @@ shinyServer(function(input,output,session) {
 	# Simulate a population based on input characteristics
 	# Will have it's own specific dose and time of G-CSF administration
 		Rsim.data3 <- reactive({
-			if (input$NREG > 2) {
-				# Read in reactive input.data
-					input.data <- Rinput.data()
-				# Read in simulation specific value for G-CSF
-					if (input$GCSF3 == 3) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
-				# Calculate amt to be administered based on patient's BSA and DOSE1
-					input.data$amt <- input.data$BSA*input$DOSE3
-			  # Simulate
-					sim.data3 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
-					sim.data3 <- as.data.frame(sim.data3)	#Convert to a data frame so that it is more useful for me!
-			}
+			withProgress(
+				message = "Simulating profiles...",
+				value = 0,
+				{
+					if (input$NREG > 2) {
+						# Read in reactive input.data
+							input.data <- Rinput.data()
+						# Read in simulation specific value for G-CSF
+							if (input$GCSF3 == 3) input.data$GCSF <- 1	# Select input for when to administer G-CSF (Neupogen), Day 7 = 1
+						# Calculate amt to be administered based on patient's BSA and DOSE1
+							input.data$amt <- input.data$BSA*input$DOSE3
+					  # Simulate
+							sim.data3 <- mod %>% data_set(input.data) %>% mrgsim(add = time)
+							sim.data3 <- as.data.frame(sim.data3)	#Convert to a data frame so that it is more useful for me!
+					}
+				}
+			)	# Brackets closing "withProgress"
 		})	# Brackets closing "Rsim.data3"
 
 	# Create a data frame that only contains the "PRED" data
@@ -361,4 +379,10 @@ shinyServer(function(input,output,session) {
   session$onSessionEnded(function() {
     stopApp()
   })
+
+	output$session.info <- renderPrint({
+		# Load session information
+		 	session.info <- sessionInfo()
+			print(session.info)
+	})	# Brackets closing "renderText"	
 })  # Brackets closing "shinyServer" function
