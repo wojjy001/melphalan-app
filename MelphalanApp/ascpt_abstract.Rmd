@@ -1,0 +1,33 @@
+---
+output: html_document
+---
+
+## Personalized melphalan therapy for autologous stem cell transplant: G-CSF regimen significantly influences duration of neutropenia
+
+**Authors:** Yu Kyoung Cho^1 , Douglas Sborov^4 , Junan Li^1 , Jiang Wang^3 , Yue Gao^1 , Misty Lamprecht^3 , Megan Jukich^3 ,
+William Falk^3 , Larry J. Schaaf^1,3 , Ming Poi^2,3 , Craig C. Hofmeister^3,4 , Mitch A. Phelps^1,3
+
+**Affiliations:**
+
+^1 Division of Pharmaceutics and Pharmaceutical Chemistry, The Ohio State University, U.S.A.
+^2 Division of Pharmacy Practice and Administration, College of Pharmacy, The Ohio State University, U.S.A.
+^3 Comprehensive Cancer Center, The Ohio State University, U.S.A.
+^4 Division of Hematology, College of Medicine, The Ohio State University, U.S.A.
+
+**Background:**
+
+Melphalan combined with G-CSF is effective in multiple myeloma (MM) patients receiving autologous stem cell transplantation (ASCT). High inter-patient variability and individual sensitivity to melphalan cause severe toxicities, including potentially life-threatening prolonged severe neutropenia. Therefore, we aimed to personalize melphalan+G-CSF therapy to maximize efficacy and minimize prolonged neutropenia.
+
+**Methods:**
+
+Patients received melphalan followed by transplant then daily G-CSF beginning day +1 or day +7 after transplant. Plasma and peripheral blood mononuclear cells (PBMCs) were collected prior to and during melphalan treatment. Plasma melphalan was quantified using a validated LC-MS/MS assay. PBMCs were treated ex vivo with melphalan to measure potential biomarkers. Modeling was performed using a nonlinear mixed effects approach evaluating the impact of melphalan exposure on absolute neutrophil count (ANC). The influence of different G-CSF regimens on duration of severe neutropenia was fully analyzed in October 2015.
+
+**Results:**
+Four covariates (creatinine clearance, hematocrit, SLC7A5, fat free mass) were chosen for the final PK model. While melphalan exposure significantly impacted duration of severe neutropenia, GCSF regimen was also a significant factor. Duration of severe neutropenia was 50.82 hours shorter (p < 0.001) when G-CSF regimen was started day +1 (n = 41) compared to starting day +7 (n = 77).
+
+**Conclusion:**
+The PK/PD model enables prediction of the ANC time course and individualized adjustment of melphalan dosing to minimize prolonged neutropenia. G-CSF regimen was found to significantly influence duration of severe neutropenia, and it was therefore incorporated into the model.
+
+*Acknowledgements*
+
+This research was supported by Multiple Myeloma Opportunities for Research and Education (MMORE), a Pelotonia IDEA award, the Ohio State University Comprehensive Cancer Center Core Grant (P30CA016058), and an Eli-Lilly fellowship.
