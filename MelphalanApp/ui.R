@@ -14,8 +14,14 @@ sidebar <-
 	dashboardSidebar(
 		width = 400,	# Width of sidebar the same as width of header
 		sidebarMenu(id = "sidebarmenu",
-			menuItem("About",tabName = "about",icon = icon("question-circle")),
-			menuItem("Application",tabName = "application",icon = icon("angle-right")),
+			menuItem("About",tabName = "about",icon = icon("question-circle"),
+				menuSubItem("Background and Objective",tabName = "objective",icon = icon("angle-double-right")),
+				menuSubItem("ASCPT 2016 Abstract",tabName = "abstract",icon = icon("angle-double-right")),
+				menuSubItem("Population PK/PD Model",tabName = "model",icon = icon("angle-double-right")),
+				menuSubItem("Resources",tabName = "packages",icon = icon("angle-double-right")),
+				menuSubItem("Acknowledgements",tabName = "acknowledgements",icon = icon("angle-double-right"))
+			),
+			menuItem("Application",tabName = "application",icon = icon("line-chart")),
 			conditionalPanel(condition = "input.sidebarmenu === 'application'",
 				fixedRow(
 					column(11,offset = 1,
@@ -57,8 +63,15 @@ sidebar <-
 body <-
 	dashboardBody(
 		tabItems(
-			tabItem(tabName = "about"
-			),	# Brackets closing "tabItem" for "about"
+			tabItem(tabName = "abstract",
+				includeMarkdown("ascpt_abstract.Rmd")
+			),	# Brackets closing "tabItem" for "abstract"
+			tabItem(tabName = "model",
+				pre(includeText("model.R"))
+			),	# Brackets closing "tabItem" for "model"
+			tabItem(tabName = "packages",
+				pre(htmlOutput("session.info"))
+			),	# Brackets closing "tabItem" for "packages"
 			tabItem(tabName = "application",
 				tabBox(
 					tabPanel("ANC Profile",
