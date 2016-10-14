@@ -2,8 +2,8 @@ name: MelphalanApp
 account: jessicawojciechowski
 server: shinyapps.io
 appId: 120707
-bundleId: 561113
+bundleId: 586212
 url: https://jessicawojciechowski.shinyapps.io/MelphalanApp/
-when: 1474255119.96003
+when: 1476422001.39809
 asMultiple: FALSE
 asStatic: FALSE
