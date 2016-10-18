@@ -15,8 +15,8 @@ sidebar <-
 		width = 400,	# Width of sidebar the same as width of header
 		sidebarMenu(id = "sidebarmenu",
 			menuItem("About",tabName = "about",icon = icon("question-circle"),
-				menuSubItem("Background and Objective",tabName = "objective",icon = icon("angle-double-right")),
-				menuSubItem("ASCPT 2016 Abstract",tabName = "abstract",icon = icon("angle-double-right")),
+				menuSubItem("Application Instructions",tabName = "instructions",icon = icon("angle-double-right")),
+				menuSubItem("Background - ASCPT 2016 Abstract",tabName = "background",icon = icon("angle-double-right")),
 				menuSubItem("Population PK/PD Model",tabName = "model",icon = icon("angle-double-right")),
 				menuSubItem("Resources",tabName = "packages",icon = icon("angle-double-right")),
 				menuSubItem("Acknowledgements",tabName = "acknowledgements",icon = icon("angle-double-right"))
@@ -63,15 +63,22 @@ sidebar <-
 body <-
 	dashboardBody(
 		tabItems(
-			tabItem(tabName = "abstract",
+			tabItem(tabName = "instructions",
+				includeMarkdown("instructions.Rmd")
+			),	# Brackets closing "tabItem" for "instructions"
+			tabItem(tabName = "background",
 				includeMarkdown("ascpt_abstract.Rmd")
 			),	# Brackets closing "tabItem" for "abstract"
 			tabItem(tabName = "model",
+				includeMarkdown("model_description.Rmd"),
 				pre(includeText("model.R"))
 			),	# Brackets closing "tabItem" for "model"
 			tabItem(tabName = "packages",
 				pre(htmlOutput("session.info"))
 			),	# Brackets closing "tabItem" for "packages"
+			tabItem(tabName = "acknowledgements",
+				includeMarkdown("acknowledgements.Rmd")
+			),	# Brackets closing "tabItem" for "acknowledgements"
 			tabItem(tabName = "application",
 				tabBox(
 					tabPanel("ANC Profile",
