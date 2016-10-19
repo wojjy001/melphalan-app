@@ -4,6 +4,48 @@ output: html_document
 
 ## How this application works
 
-This application takes
+This application takes individual patient information such as; age, weight, height, serum creatinine, haematocrit, baseline absolute neutrophil count (ANC), gender, race/ethnicity and genetic information, to predict the most likely ANC time-profile following the administration of melphalan for a given dose using an underlying population pharmacokinetic-pharmacodynamic (PKPD) model describing the time-dependent relationship between melphalan and ANC.
+
+The *intent* is to identify a melphalan dose and time for granulocyte-colony stimulating factor (G-CSF; Neupogen) administration that minimises the time the patient is likely to spend in Grade 4 Neutropenia (0.5 K/µL).
+
+Uncertainty in the model's prediction for the patient is graphically represented by 95% prediction intervals (2.5^th and 97.5^th percentiles), and can be used to guide dosing decisions.
+
+**Note:** This application assumes no previous/recent melphalan dosing and therefore, does not required measured melphalan concentrations.
+
+Melphalan concentrations and ANC are simulated using the *mrgsolve* package for the R statistical and programming language.
 
 ## How to use this application
+
+**Application Tab:**
+
+![][1]
+
+Patient Information:
+
+**ANC Profile Tab:**
+
+![][2]
+
+![][3]
+
+![][4]
+
+**Duration in Grade 4 Neutropenia Tab:**
+
+![][5]
+
+**Melphalan Profile Tab:**
+
+![][6]
+
+[1]: www/Sidebar_Screenshot.png "Figure 1"
+
+[2]: www/Single_ANC_Screenshot.png "Figure 2"
+
+[3]: www/Three_ANC_Screenshot.png "Figure 3"
+
+[4]: www/Single_ANC_CI_Screenshot.png "Figure 4"
+
+[5]: www/Three_G4N_CI_Screenshot.png "Figure 5"
+
+[6]: www/Single_Melph_CI_Screenshot.png "Figure 6"
